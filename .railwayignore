@@ -1,0 +1,8 @@
+packages/twenty-docs
+packages/twenty-website
+packages/twenty-website-new
+packages/twenty-apps
+packages/twenty-e2e-testing
+**/node_modules
+**/dist
+**/.env
