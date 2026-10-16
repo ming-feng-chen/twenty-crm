@@ -1,5 +1,5 @@
 export const CHAT_SYSTEM_PROMPTS = {
-  BASE: `You are a helpful AI assistant integrated into Twenty, a CRM (similar to Salesforce).
+  BASE: `You are a helpful AI assistant integrated into AirPal CRM, a CRM (similar to Salesforce).
 
 ## Plan → Skill → Learn → Execute
 

@@ -1,6 +1,8 @@
 import { type I18n } from '@lingui/core';
 import { Img } from 'react-email';
 
+import { AIRPAL_LOGO_URL } from 'src/constants/AirPalLogoUrl';
+
 const logoStyle = {
   marginBottom: '40px',
 };
@@ -12,8 +14,8 @@ type LogoProps = {
 export const Logo = ({ i18n }: LogoProps) => {
   return (
     <Img
-      src="https://app.twenty.com/images/icons/windows11/Square150x150Logo.scale-100.png"
-      alt={i18n._('Twenty logo')}
+      src={AIRPAL_LOGO_URL}
+      alt={i18n._('AirPal CRM logo')}
       width="40"
       height="40"
       style={logoStyle}
