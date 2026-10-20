@@ -12,6 +12,7 @@ export type MyDayPerson = {
   id: string;
   name: string;
   companyName: string | null;
+  companyGroup: string | null;
   stage: string | null;
   step: string | null;
   state: string | null;
@@ -33,7 +34,7 @@ export type MyDayPerson = {
 export type PersonNode = {
   id: string;
   name?: { firstName?: string | null; lastName?: string | null } | null;
-  company?: { name?: string | null } | null;
+  company?: { name?: string | null; group?: string | null } | null;
   emails?: {
     primaryEmail?: string | null;
     additionalEmails?: unknown;
@@ -73,6 +74,7 @@ export const toMyDayPerson = (node: PersonNode): MyDayPerson => {
     id: node.id,
     name: personName(node.name),
     companyName: nonEmpty(node.company?.name),
+    companyGroup: node.company?.group ?? null,
     stage: node.cadenceStage ?? null,
     step: nonEmpty(node.cadenceStep),
     state: node.cadenceState ?? null,
@@ -137,10 +139,19 @@ export const mergeRoutePerson = (
     ...fresh,
     name: person.name,
     companyName: person.companyName,
+    companyGroup: person.companyGroup,
     primaryEmail: person.primaryEmail,
     additionalEmails: person.additionalEmails,
   };
 };
+
+export type CompanyGroupFilter = 'ALL' | 'PARTNER' | 'AIRPORT';
+
+export const filterByCompanyGroup = (
+  people: MyDayPerson[],
+  filter: CompanyGroupFilter,
+): MyDayPerson[] =>
+  filter === 'ALL' ? people : people.filter((person) => person.companyGroup === filter);
 
 export type SectionKey = 'replyOwed' | 'overdue' | 'dueToday';
 

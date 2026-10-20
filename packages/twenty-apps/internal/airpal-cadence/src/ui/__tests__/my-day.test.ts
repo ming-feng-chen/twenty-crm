@@ -4,6 +4,7 @@ import { parseCadenceActions } from 'src/ui/cadence-actions';
 import {
   buildSections,
   EVERYONE,
+  filterByCompanyGroup,
   groupByOwner,
   ME,
   mergeRoutePerson,
@@ -122,6 +123,23 @@ describe('toMyDayPerson', () => {
 
     expect(row.name).toBe('Unnamed person');
     expect(row.companyName).toBeNull();
+  });
+});
+
+describe('filterByCompanyGroup', () => {
+  const partner = person('p1', { company: { name: 'Avolta', group: 'PARTNER' } });
+  const airport = person('p2', { company: { name: 'Heathrow', group: 'AIRPORT' } });
+  const untagged = person('p3', { company: { name: 'Bagid', group: null } });
+  const noCompany = person('p4', { company: null });
+  const everyone = [partner, airport, untagged, noCompany];
+
+  it('keeps everyone, untagged included, when showing both groups', () => {
+    expect(filterByCompanyGroup(everyone, 'ALL')).toEqual(everyone);
+  });
+
+  it('keeps only contacts whose organisation is in the chosen group', () => {
+    expect(filterByCompanyGroup(everyone, 'PARTNER').map((row) => row.id)).toEqual(['p1']);
+    expect(filterByCompanyGroup(everyone, 'AIRPORT').map((row) => row.id)).toEqual(['p2']);
   });
 });
 

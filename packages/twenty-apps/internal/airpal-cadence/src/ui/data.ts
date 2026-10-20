@@ -146,7 +146,7 @@ export const loadCadenceTimeZone = async (
 const PERSON_SELECTION = {
   id: true,
   name: { firstName: true, lastName: true },
-  company: { name: true },
+  company: { name: true, group: true },
   emails: { primaryEmail: true, additionalEmails: true },
   cadenceStage: true,
   cadenceStep: true,

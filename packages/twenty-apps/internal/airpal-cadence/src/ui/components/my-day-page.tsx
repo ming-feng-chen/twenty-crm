@@ -23,8 +23,10 @@ import {
 } from 'src/ui/labels';
 import {
   buildSections,
+  type CompanyGroupFilter,
   countSections,
   EVERYONE,
+  filterByCompanyGroup,
   groupByOwner,
   ME,
   mergeRoutePerson,
@@ -164,6 +166,7 @@ const MyDayContent = () => {
 
   const [setup, setSetup] = useState<Setup>({ status: 'loading' });
   const [selection, setSelection] = useState<Selection>(ME);
+  const [companyGroupFilter, setCompanyGroupFilter] = useState<CompanyGroupFilter>('ALL');
   const [list, setList] = useState<ListState>({
     status: 'idle',
     people: [],
@@ -629,7 +632,8 @@ const MyDayContent = () => {
       .map((member) => ({ value: selectionToValue({ kind: 'member', memberId: member.id }), label: member.displayName })),
     { value: selectionToValue(EVERYONE), label: 'Everyone (by owner)' },
   ];
-  const sections = buildSections(list.people, today);
+  const shownPeople = filterByCompanyGroup(list.people, companyGroupFilter);
+  const sections = buildSections(shownPeople, today);
   const counts = countSections(sections);
   const ownerShown = showsOwner(selection, viewerMemberId);
   const memberName = (id: string | null) =>
@@ -665,6 +669,17 @@ const MyDayContent = () => {
             options={selectOptions}
             ariaLabel="Whose My Day"
             testId="owner-selector"
+          />
+          <Select
+            value={companyGroupFilter}
+            onChange={(value) => setCompanyGroupFilter(value as CompanyGroupFilter)}
+            options={[
+              { value: 'ALL', label: 'Partners and airports' },
+              { value: 'PARTNER', label: 'Partners only' },
+              { value: 'AIRPORT', label: 'Airports only' },
+            ]}
+            ariaLabel="Partners or airports"
+            testId="group-filter"
           />
           <Button
             compact
@@ -730,6 +745,14 @@ const MyDayContent = () => {
         </div>
       ) : null}
 
+      {list.status === 'ready' && list.people.length > 0 && shownPeople.length === 0 ? (
+        <div style={{ marginTop: '16px' }} data-testid="empty-filtered">
+          <Notice tone="info" title={`No ${companyGroupFilter === 'PARTNER' ? 'partner' : 'airport'} contacts are due.`}>
+            {`${list.people.length} other contact(s) are due. Choose "Partners and airports" to see them.`}
+          </Notice>
+        </div>
+      ) : null}
+
       {list.status === 'ready' && list.people.length === 0 && ownerFilter !== null ? (
         <div style={{ marginTop: '16px' }} data-testid="empty">
           <Notice tone="info" title="Nothing is due today.">
@@ -743,7 +766,7 @@ const MyDayContent = () => {
       ) : null}
 
       {list.status === 'ready' && selection.kind === 'everyone'
-        ? groupByOwner(list.people, members, today).map((group) => (
+        ? groupByOwner(shownPeople, members, today).map((group) => (
             <div key={group.ownerId} style={{ marginTop: '18px' }} data-testid="owner-group">
               <h2 style={{ fontSize: '14px', fontWeight: 600, margin: '0', paddingBottom: '2px', borderBottom: `1px solid ${theme.border}` }}>
                 {`${group.ownerName} (${group.total})`}
