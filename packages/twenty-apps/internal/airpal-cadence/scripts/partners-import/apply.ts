@@ -4,6 +4,7 @@
 //
 //   TWENTY_API_TOKEN=... npx tsx scripts/partners-import/apply.ts dry-run --url <server> --plan <plan.json>
 //   TWENTY_API_TOKEN=... npx tsx scripts/partners-import/apply.ts apply --url <server> --plan <plan.json> --confirm <fingerprint>
+//   TWENTY_API_TOKEN=... npx tsx scripts/partners-import/apply.ts recompute --url <server> --plan <plan.json>
 //
 // --owner-map a@x=b@y,... maps plan owner emails to the target's members (staging).
 // Production (crm.airpal.co.uk) also needs --production.
@@ -11,7 +12,12 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { type ImportPlan, type PlannedPerson, type PlannedTouch } from './types';
+import {
+  type ImportPlan,
+  type PlannedCompany,
+  type PlannedPerson,
+  type PlannedTouch,
+} from './types';
 
 const args = process.argv.slice(2);
 const mode = args[0];
@@ -94,6 +100,43 @@ const graphql = async <TData>(
   return fail('Rate limited too many times.');
 };
 
+// Bulk-created touches race the person-created recompute, which can land last
+// with "Not started", so every imported person is recomputed once at the end.
+const recomputePerson = async (personId: string) => {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const wait = lastRequestAt + REQUEST_SPACING_IN_MS - Date.now();
+
+    if (wait > 0) {
+      await sleep(wait);
+    }
+
+    lastRequestAt = Date.now();
+
+    const response = await fetch(`${serverUrl}/s/cadence/recompute`, {
+      method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(60_000),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ personId }),
+    });
+
+    if (response.status === 429) {
+      await sleep(5_000 * (attempt + 1));
+      continue;
+    }
+
+    const body = (await response.json()) as { ok?: boolean; recompute?: { status: string } };
+
+    if (!response.ok || body.ok !== true) {
+      fail(`Recompute of ${personId} failed with HTTP ${response.status}.`);
+    }
+
+    return body.recompute?.status ?? 'unknown';
+  }
+
+  return fail('Rate limited too many times.');
+};
+
 type Connection<TNode> = {
   edges: { node: TNode }[];
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
@@ -146,6 +189,7 @@ type LivePerson = {
 
 type LiveState = {
   companyIdByName: Map<string, string>;
+  companyNameById: Map<string, string>;
   companyIdByDomain: Map<string, string>;
   findPerson: (person: PlannedPerson) => LivePerson | undefined;
   memberIdByEmail: Map<string, string>;
@@ -173,6 +217,7 @@ const readLiveState = async (): Promise<LiveState> => {
   const byLinkedin = new Map<string, LivePerson>();
   const byEmail = new Map<string, LivePerson>();
   const byName = new Map<string, LivePerson>();
+  const byId = new Map(people.map((person) => [person.id, person]));
 
   for (const person of people) {
     const linkedin = normalizeLinkedin(person.linkedinLink?.primaryLinkUrl);
@@ -195,6 +240,7 @@ const readLiveState = async (): Promise<LiveState> => {
 
   return {
     companyIdByName: new Map(companies.map((company) => [normalize(company.name), company.id])),
+    companyNameById: new Map(companies.map((company) => [company.id, company.name])),
     companyIdByDomain: new Map(
       companies
         .filter((company) => company.domainName?.primaryLinkUrl)
@@ -208,7 +254,8 @@ const readLiveState = async (): Promise<LiveState> => {
     findPerson: (person) =>
       (person.linkedinUrl ? byLinkedin.get(normalizeLinkedin(person.linkedinUrl)) : undefined) ??
       (person.email ? byEmail.get(normalize(person.email)) : undefined) ??
-      byName.get(normalize(person.name)),
+      byName.get(normalize(person.name)) ??
+      (person.existingPersonId ? byId.get(person.existingPersonId) : undefined),
     memberIdByEmail: new Map(members.map((member) => [normalize(member.userEmail), member.id])),
   };
 };
@@ -225,9 +272,28 @@ const resolveOwnerId = (person: PlannedPerson, live: LiveState) => {
   );
 };
 
+// By the Sheet's name first; otherwise the company the plan chose to reuse,
+// which is renamed. A plan made from another workspace's export falls back to name.
+const resolveCompany = (company: PlannedCompany, live: LiveState) => {
+  const byName = live.companyIdByName.get(company.key);
+
+  if (byName) {
+    return { id: byName, rename: false };
+  }
+
+  if (company.existingId && live.companyNameById.has(company.existingId)) {
+    return { id: company.existingId, rename: true };
+  }
+
+  return null;
+};
+
 const buildDryRun = (live: LiveState) => {
   const companiesToCreate = plan.companies.filter(
-    (company) => !live.companyIdByName.has(company.key),
+    (company) => resolveCompany(company, live) === null,
+  );
+  const companiesToRename = plan.companies.filter(
+    (company) => resolveCompany(company, live)?.rename === true,
   );
   const peopleToUpdate = plan.people.filter((person) => live.findPerson(person));
 
@@ -241,17 +307,21 @@ const buildDryRun = (live: LiveState) => {
     ownerMap,
     companiesToCreate: companiesToCreate.map((company) => company.name).sort(),
     companiesToUpdate: plan.companies.length - companiesToCreate.length,
+    companiesToRename: companiesToRename
+      .map((company) => `${live.companyNameById.get(company.existingId as string)} -> ${company.name}`)
+      .sort(),
     peopleToCreate: plan.people.length - peopleToUpdate.length,
     peopleToUpdate: peopleToUpdate.map((person) => person.name).sort(),
     touches: plan.people.reduce((sum, person) => sum + person.touches.length, 0),
     notes: plan.people.length,
+    companiesToBinIfEmpty: (plan.crmCompaniesLeftEmpty ?? []).map((company) => company.name).sort(),
   };
 };
 
 const fingerprint = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 16);
 
-const personData = (person: PlannedPerson, companyId: string, ownerId: string | null) => ({
+const personData = (person: PlannedPerson, companyId: string | null, ownerId: string | null) => ({
   name: { firstName: person.firstName, lastName: person.lastName },
   jobTitle: person.jobTitle,
   emails: { primaryEmail: person.email ?? '' },
@@ -302,6 +372,7 @@ const apply = async () => {
     createdNoteIds: [] as string[],
     skippedDuplicateTouches: 0,
     deletedWorkflowCompanies: [] as string[],
+    deletedEmptyCompanies: [] as string[],
     domainsAlreadyTaken: [] as string[],
   };
   const startedAt = new Date().toISOString();
@@ -312,7 +383,8 @@ const apply = async () => {
   const companyIdByKey = new Map<string, string>();
 
   for (const company of plan.companies) {
-    const existingId = live.companyIdByName.get(company.key);
+    const resolved = resolveCompany(company, live);
+    const existingId = resolved?.id;
     // Websites are unique per workspace; the final companyId update covers a skipped one
     const domainHolderId = company.domain
       ? live.companyIdByDomain.get(company.domain)
@@ -336,7 +408,7 @@ const apply = async () => {
     if (existingId) {
       await graphql(
         `mutation($id: UUID!, $data: CompanyUpdateInput!) { updateCompany(id: $id, data: $data) { id } }`,
-        { id: existingId, data: groupAndCategory },
+        { id: existingId, data: { ...groupAndCategory, ...(resolved?.rename ? { name: company.name } : {}) } },
       );
       companyIdByKey.set(company.key, existingId);
       receipt.updatedCompanyIds.push(existingId);
@@ -355,7 +427,10 @@ const apply = async () => {
   const personIdBySheetId = new Map<string, string>();
 
   for (const person of plan.people) {
-    const companyId = companyIdByKey.get(person.companyKey) ?? fail(`No company for ${person.name}`);
+    const companyId =
+      person.companyKey === null
+        ? null
+        : companyIdByKey.get(person.companyKey) ?? fail(`No company for ${person.name}`);
     const data = personData(person, companyId, resolveOwnerId(person, live));
     const existing = live.findPerson(person);
 
@@ -469,13 +544,17 @@ const apply = async () => {
       {
         id: personIdBySheetId.get(person.sheetId),
         data: {
-          companyId: companyIdByKey.get(person.companyKey),
+          companyId: person.companyKey === null ? null : companyIdByKey.get(person.companyKey),
           cadenceStage: person.stage,
           cadenceHealth: person.health,
           ...(person.nextActionDate ? { nextActionDate: person.nextActionDate } : {}),
         },
       },
     );
+  }
+
+  for (const person of plan.people) {
+    await recomputePerson(personIdBySheetId.get(person.sheetId) as string);
   }
 
   // Only companies that workflow made during this import and that are now empty
@@ -494,12 +573,28 @@ const apply = async () => {
     save();
   }
 
+  const leftEmptyIds = (plan.crmCompaniesLeftEmpty ?? []).map((company) => company.id);
+  const leftEmpty = leftEmptyIds.length === 0
+    ? []
+    : await readAll<{ id: string; name: string; people: { edges: unknown[] } }>(
+        'companies',
+        'CompanyFilterInput',
+        'id name people(first: 1) { edges { node { id } } }',
+        { id: { in: leftEmptyIds } },
+      );
+
+  for (const company of leftEmpty.filter((candidate) => candidate.people.edges.length === 0)) {
+    await graphql(`mutation($id: UUID!) { deleteCompany(id: $id) { id } }`, { id: company.id });
+    receipt.deletedEmptyCompanies.push(company.name);
+    save();
+  }
+
   console.log(`Receipt: ${receiptPath}`);
   console.log(
     `Companies ${receipt.createdCompanyIds.length} created / ${receipt.updatedCompanyIds.length} updated; ` +
       `people ${receipt.createdPersonIds.length} created / ${receipt.updatedPersonIds.length} updated; ` +
       `touches ${receipt.createdTouchIds.length} created (${receipt.skippedDuplicateTouches} duplicates skipped); ` +
-      `notes ${receipt.createdNoteIds.length}; empty workflow companies removed ${receipt.deletedWorkflowCompanies.length}.`,
+      `notes ${receipt.createdNoteIds.length}; empty workflow companies removed ${receipt.deletedWorkflowCompanies.length}; emptied companies moved to the bin ${receipt.deletedEmptyCompanies.length}.`,
   );
 };
 
@@ -517,7 +612,22 @@ const run = async () => {
     return;
   }
 
-  fail('Mode must be dry-run or apply.');
+  if (mode === 'recompute') {
+    const live = await readLiveState();
+    const statuses = new Map<string, number>();
+
+    for (const person of plan.people) {
+      const existing = live.findPerson(person) ?? fail(`${person.name} not found`);
+      const status = await recomputePerson(existing.id);
+
+      statuses.set(status, (statuses.get(status) ?? 0) + 1);
+    }
+
+    console.log(`Recomputed ${plan.people.length}: ${JSON.stringify(Object.fromEntries(statuses))}`);
+    return;
+  }
+
+  fail('Mode must be dry-run, apply or recompute.');
 };
 
 run().catch((error: Error) => {

@@ -23,7 +23,7 @@ export const compareWithSheet = (person: PlannedPerson): 'agrees' | 'differs' | 
   const nextAction = person.sheet.nextAction.toLowerCase();
   const crmStep = `${person.engine.stepLabel} ${person.engine.positionLabel}`.toLowerCase();
   const expectations: [RegExp, (step: string) => boolean][] = [
-    [/^(send linkedin connection request|linkedin connect)/, (step) => step.includes('connection request') && !step.includes('not accepted')],
+    [/^(send linkedin connection request|linkedin connect)/, (step) => (step.includes('connection request') && !step.includes('not accepted')) || step.startsWith('not started')],
     [/^check acceptance/, (step) => step.includes('not accepted')],
     [/linkedin message 1/, (step) => step.includes('linkedin message 1')],
     [/linkedin message 2/, (step) => step.includes('linkedin message 2')],
@@ -49,7 +49,13 @@ const table = (headers: string[], rows: string[][]) =>
         .join('')}</tbody></table>`;
 
 export const renderReview = (plan: ImportPlan) => {
-  const companyName = new Map(plan.companies.map((company) => [company.key, company.name]));
+  const tabLabel = plan.sheetTab ?? 'Partners';
+  const sheetFile = (plan.sources.sheet ?? plan.sources.partners).file;
+  const companyNames = new Map(plan.companies.map((company) => [company.key, company.name]));
+  const companyName = { get: (key: string | null) => (key === null ? '(none)' : companyNames.get(key)) };
+  const renamed = plan.companies.filter(
+    (company) => company.existingName && company.existingName !== company.name,
+  );
   const people = [...plan.people].sort((first, second) =>
     first.name.localeCompare(second.name),
   );
@@ -72,7 +78,7 @@ export const renderReview = (plan: ImportPlan) => {
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Partners import review</title>
+<title>${escapeHtml(tabLabel)} import review</title>
 <style>
 :root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--warn:#9a6700;--bad:#cf222e;--ok:#1a7f37;--head:#f6f8fa}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--warn:#d29922;--bad:#f85149;--ok:#3fb950;--head:#161b22}}
@@ -82,17 +88,17 @@ table{border-collapse:collapse;width:100%;margin:8px 0}th,td{border:1px solid va
 th{background:var(--head)}.muted{color:var(--muted)}.warn{color:var(--warn)}.bad{color:var(--bad)}.ok{color:var(--ok)}
 ul{margin:0;padding-left:18px}.wrap{overflow-x:auto}
 </style></head><body>
-<h1>Partners import review</h1>
-<p>Built ${escapeHtml(plan.generatedAt.slice(0, 10))} from <code>${escapeHtml(plan.sources.partners.file)}</code> and the reconciliation pack, checked against the CRM export. Nothing has been imported yet.</p>
+<h1>${escapeHtml(tabLabel)} import review</h1>
+<p>Built ${escapeHtml(plan.generatedAt.slice(0, 10))} from <code>${escapeHtml(sheetFile)}</code>${plan.sources.pack ? ' and the reconciliation pack' : ''}, checked against the CRM export. Nothing has been imported yet.</p>
 <ul>
-<li><b>${plan.companies.length}</b> organisations (${plan.companies.filter((company) => company.existingId).length} already in the CRM, ${plan.companies.filter((company) => company.group === 'AIRPORT').length} tagged Airport)</li>
+<li><b>${plan.companies.length}</b> organisations (${plan.companies.filter((company) => company.existingId).length} already in the CRM, ${renamed.length} of them renamed; ${plan.companies.filter((company) => company.group === 'AIRPORT').length} tagged Airport)</li>
 <li><b>${people.length}</b> contacts (${matched.length} already in the CRM, updated rather than duplicated)</li>
 <li><b>${touchCount}</b> touches: ${touchCount - rebuiltCount} recorded events, <b>${rebuiltCount} rebuilt</b></li>
 <li><b>${flagged.length}</b> contacts flagged · <b>${differing.length}</b> where the CRM step differs from the Sheet's next action</li>
 </ul>
 
 <h2>1. Rebuilt touches: please check</h2>
-<p class="muted">Touches the Sheet's next action proves but no event recorded. Each is dated on the Sheet's last-touch day.</p>
+<p class="muted">Touches the Sheet's next action (or, for Airports, its touch count) proves but no event recorded. Each is dated on the Sheet's last-touch day.</p>
 <div class="wrap">${table(
     ['Contact', 'Owner', 'Sheet next action', 'Rebuilt touches', 'CRM will show'],
     withRebuilt.map((person) => [
@@ -107,7 +113,7 @@ ul{margin:0;padding-left:18px}.wrap{overflow-x:auto}
     ]),
   )}</div>
 
-<h2>2. Flagged: nothing rebuilt, your call</h2>
+<h2>2. Flagged: please check</h2>
 <div class="wrap">${table(
     ['Contact', 'Sheet stage / next action', 'Issue', 'CRM will show'],
     flagged.map((person) => [
@@ -131,7 +137,17 @@ ul{margin:0;padding-left:18px}.wrap{overflow-x:auto}
 <h2>4. Recorded events dated by rule</h2>
 <div class="wrap">${table(['Contact', 'Touch', 'Why this date'], datedByRule)}</div>
 
-<h2>5. Already in the CRM (updated, not duplicated)</h2>
+<h2>5. Organisations already in the CRM, renamed to the Sheet's name</h2>
+<div class="wrap">${table(
+    ['Sheet organisation', 'Existing CRM company', 'Why'],
+    renamed.map((company) => [
+      escapeHtml(company.name),
+      escapeHtml(company.existingName ?? ''),
+      'Its contacts already sit under this company (created by email sync)',
+    ]),
+  )}</div>
+
+<h2>6. Contacts already in the CRM (updated, not duplicated)</h2>
 <div class="wrap">${table(
     ['Sheet contact', 'Existing CRM record', 'Matched on'],
     matched.map((person) => [
@@ -141,7 +157,7 @@ ul{margin:0;padding-left:18px}.wrap{overflow-x:auto}
     ]),
   )}</div>
 
-<h2>6. Every contact</h2>
+<h2>7. Every contact</h2>
 <div class="wrap">${table(
     ['Contact', 'Organisation', 'Owner', 'Stage', 'Sheet next action', 'Touches', 'CRM will show', 'Check'],
     people.map((person) => {

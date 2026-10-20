@@ -1,9 +1,9 @@
-// Builds the Partners import plan from the AirPal CRM Sheet export, its
-// reconciliation pack and a CRM export, and checks each contact's resulting
-// cadence step with the real engine. Reads files only; writes nothing to a CRM.
+// Builds an import plan from one tab of the AirPal CRM Sheet (Partners or
+// Airports), the optional reconciliation pack and a CRM export, and checks each
+// contact's resulting cadence step with the real engine. Reads files only.
 //
-//   npx tsx scripts/partners-import/plan.ts --partners <csv> --pack <md>
-//     --people <person.csv> --companies <company.csv> --today YYYY-MM-DD --out <dir>
+//   npx tsx scripts/partners-import/plan.ts --tab partners|airports --sheet <csv>
+//     [--pack <md>] --people <person.csv> --companies <company.csv> --today YYYY-MM-DD --out <dir>
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -35,20 +35,49 @@ const option = (flag: string) => {
   return args[index + 1];
 };
 
-const partnersPath = option('--partners');
-const packPath = option('--pack');
+const optionalOption = (flag: string) =>
+  args.includes(flag) ? option(flag) : undefined;
+
+const TAB_RULES = {
+  partners: {
+    label: 'Partners',
+    defaultGroup: 'PARTNER',
+    exportedOn: '18 Oct',
+    noteTitle: 'From the AirPal CRM Sheet (18 Oct)',
+    rebuildFromTouchCount: false,
+    holdContactedWithoutTouches: false,
+  },
+  // Airports Q1 (20 Oct): with no activity history, the touch count is rebuilt
+  airports: {
+    label: 'Airports',
+    defaultGroup: 'AIRPORT',
+    exportedOn: '20 Oct',
+    noteTitle: 'From the AirPal CRM Sheet, Airports tab (20 Oct)',
+    rebuildFromTouchCount: true,
+    holdContactedWithoutTouches: true,
+  },
+} as const;
+
+const tab = (optionalOption('--tab') ?? 'partners') as keyof typeof TAB_RULES;
+const tabRules = TAB_RULES[tab] ?? fail(`Unknown --tab ${tab}`);
+const sheetPath = optionalOption('--sheet') ?? option('--partners');
+const packPath = optionalOption('--pack');
 const peoplePath = option('--people');
 const companiesPath = option('--companies');
 const today = option('--today');
 const outDirectory = option('--out');
 
+function fail(message: string): never {
+  throw new Error(message);
+}
+
 const sha256 = (filePath: string) =>
   createHash('sha256').update(readFileSync(filePath)).digest('hex');
 
-const partners = readCsv(readFileSync(partnersPath, 'utf8'));
-const packText = readFileSync(packPath, 'utf8');
-const events = readCsvBlock(packText, '## activity_history.csv');
-const reconciliation = readCsvBlock(packText, '## reconciliation.csv');
+const partners = readCsv(readFileSync(sheetPath, 'utf8'));
+const packText = packPath ? readFileSync(packPath, 'utf8') : null;
+const events = packText ? readCsvBlock(packText, '## activity_history.csv') : [];
+const reconciliation = packText ? readCsvBlock(packText, '## reconciliation.csv') : [];
 const crmPeople = readCsv(readFileSync(peoplePath, 'utf8'));
 const crmCompanies = readCsv(readFileSync(companiesPath, 'utf8'));
 
@@ -74,6 +103,7 @@ const STAGES: Record<string, string> = {
   'Replied, left company': 'DEAD',
   'Replied, declined': 'DEAD',
   Invited: 'CONTACTED_NO_REPLY',
+  'Deck sent': 'DECK_SENT',
 };
 
 const OPT_OUTS: Record<string, string> = {
@@ -99,6 +129,31 @@ const CATEGORIES: Record<string, string> = {
 
 // The owner tagged lux-Airport as a client (Q9).
 const AIRPORT_ACCOUNTS = new Set(['lux-Airport']);
+
+// One organisation written two ways in the Sheet.
+const ACCOUNT_ALIASES: Record<string, string> = {
+  'Kansai Airports (VINCI Airports)': 'Kansai Airports',
+};
+
+// Companies email sync created for a Sheet organisation under another name.
+const CRM_COMPANY_ALIASES: Record<string, string[]> = {
+  'Airport Authority Hong Kong': ['Hkairport'],
+  'ANA Aeroportos de Portugal': ['ANA - Aeroportos de Portugal, SA'],
+  daa: ['Dublin Airport'],
+  'Taoyuan International Airport Corporation': ['TAIWAN TAOYUAN INTERNATIONAL AIRPORT CO., LTD.'],
+  'King Salman International Airport': ['Ksia'],
+  'InJourney Airports': ['Injourneyairports', 'Injourneyairport', 'PT Aviasi Pariwisata Indonesia (Persero)'],
+  'iGA Istanbul Airport': ['Igairport'],
+  'Flughafen München GmbH': ['Munich Airport'],
+  'Airports of Thailand': ['Airports of Thailand Public Company Limited'],
+  'Sydney Airport': ['Syd'],
+};
+
+const accountOf = (row: Record<string, string>) => {
+  const account = row.account.trim();
+
+  return ACCOUNT_ALIASES[account] ?? account;
+};
 
 // Undated or disputed events, decided from the pack's own evidence.
 const EVENT_DATE_DECISIONS: Record<string, { date: string; reason: string }> = {
@@ -222,16 +277,29 @@ for (const person of crmPeople) {
   );
 }
 
+const findCrmMatch = (row: Record<string, string>) =>
+  (row.linkedin_url && crmPersonIndex.linkedin.get(normalizeLinkedin(row.linkedin_url))) ||
+  (row.email && crmPersonIndex.email.get(normalize(row.email))) ||
+  crmPersonIndex.name.get(normalize(row.name)) ||
+  null;
+
 const companies = new Map<string, PlannedCompany>();
 
 for (const row of partners) {
-  const key = normalize(row.account);
+  const account = accountOf(row);
+
+  if (account === '') {
+    continue;
+  }
+
+  const key = normalize(account);
   const existing = companyByName.get(key);
   const planned = companies.get(key) ?? {
     key,
-    name: row.account,
+    name: account,
     existingId: existing?.Id ?? null,
-    group: AIRPORT_ACCOUNTS.has(row.account) ? 'AIRPORT' : 'PARTNER',
+    existingName: existing?.Name ?? null,
+    group: AIRPORT_ACCOUNTS.has(account) ? 'AIRPORT' : tabRules.defaultGroup,
     category: null,
     domain: null,
   };
@@ -259,8 +327,8 @@ const emailDomainsByAccount = new Map<string, Set<string>>();
 for (const row of partners) {
   const domain = normalize(row.email.split('@')[1]);
 
-  if (domain && !PERSONAL_EMAIL_DOMAINS.has(domain)) {
-    const key = normalize(row.account);
+  if (domain && accountOf(row) !== '' && !PERSONAL_EMAIL_DOMAINS.has(domain)) {
+    const key = normalize(accountOf(row));
 
     emailDomainsByAccount.set(key, (emailDomainsByAccount.get(key) ?? new Set()).add(domain));
   }
@@ -284,6 +352,165 @@ for (const company of companies.values()) {
     accountsByDomain.get(domains[0])?.length === 1
   ) {
     company.domain = domains[0];
+  }
+}
+
+// Email sync names companies after their domain ("Syd" for syd.com.au). When an
+// account's contacts already sit under exactly one such company, and no other
+// account's contacts do, that company is reused and renamed.
+const crmCompanyById = new Map(crmCompanies.map((company) => [company.Id, company]));
+const crmCompanyIdsByAccount = new Map<string, Set<string>>();
+
+for (const row of partners) {
+  const companyId = findCrmMatch(row)?.['Company Id'];
+
+  if (accountOf(row) !== '' && companyId) {
+    const key = normalize(accountOf(row));
+
+    crmCompanyIdsByAccount.set(key, (crmCompanyIdsByAccount.get(key) ?? new Set()).add(companyId));
+  }
+}
+
+const accountCountByCrmCompanyId = new Map<string, number>();
+
+for (const companyIds of crmCompanyIdsByAccount.values()) {
+  for (const companyId of companyIds) {
+    accountCountByCrmCompanyId.set(companyId, (accountCountByCrmCompanyId.get(companyId) ?? 0) + 1);
+  }
+}
+
+const claimedCrmCompanyIds = new Set(
+  [...companies.values()].map((company) => company.existingId).filter(Boolean),
+);
+const crmCompaniesByName = new Map(crmCompanies.map((company) => [company.Name, company]));
+const aliasCrmCompanies = (company: PlannedCompany) =>
+  (CRM_COMPANY_ALIASES[company.name] ?? [])
+    .map((name) => crmCompaniesByName.get(name))
+    .filter((crmCompany): crmCompany is Record<string, string> => crmCompany !== undefined);
+
+for (const company of companies.values()) {
+  const alias = aliasCrmCompanies(company).find(
+    (crmCompany) => !claimedCrmCompanyIds.has(crmCompany.Id),
+  );
+
+  if (company.existingId === null && alias !== undefined) {
+    company.existingId = alias.Id;
+    company.existingName = alias.Name;
+    company.domain = null;
+    claimedCrmCompanyIds.add(alias.Id);
+  }
+}
+
+for (const company of companies.values()) {
+  const companyIds = [...(crmCompanyIdsByAccount.get(company.key) ?? [])];
+  const crmCompany = crmCompanyById.get(companyIds[0]);
+
+  if (
+    company.existingId === null &&
+    companyIds.length === 1 &&
+    accountCountByCrmCompanyId.get(companyIds[0]) === 1 &&
+    !claimedCrmCompanyIds.has(companyIds[0]) &&
+    crmCompany !== undefined
+  ) {
+    company.existingId = crmCompany.Id;
+    company.existingName = crmCompany.Name;
+    company.domain = null;
+    claimedCrmCompanyIds.add(crmCompany.Id);
+  }
+}
+
+const nameTokens = (name: string) =>
+  name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/['’.]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+// Email sync names people from their mailbox ("Natalie K Y Kwan", "Huaihuihsieh",
+// "Malnafisah"), so within one organisation a looser comparison is safe enough
+// to propose; every such match is listed in the review.
+const isSimilarName = (sheetName: string, crmName: string) => {
+  const sheet = nameTokens(sheetName);
+  const crm = nameTokens(crmName);
+
+  if (sheet.length === 0 || crm.length === 0) {
+    return false;
+  }
+
+  const [smaller, larger] = sheet.length <= crm.length ? [sheet, crm] : [crm, sheet];
+
+  if (smaller.length >= 2 && smaller.every((token) => larger.includes(token))) {
+    return true;
+  }
+
+  if (crm.length === 1) {
+    const [token] = crm;
+
+    return (
+      token === sheet.join('') ||
+      token === `${sheet[0][0]}${sheet[sheet.length - 1]}` ||
+      (token.length >= 5 && sheet.includes(token))
+    );
+  }
+
+  const sameFirst = sheet[0] === crm[0];
+  const sheetLast = sheet[sheet.length - 1];
+  const crmLast = crm[crm.length - 1];
+
+  return (
+    sameFirst &&
+    (sheetLast === crmLast ||
+      (sheetLast.length === 1 && crmLast.startsWith(sheetLast)) ||
+      (crmLast.length === 1 && sheetLast.startsWith(crmLast)))
+  );
+};
+
+const candidateCrmCompanyIds = (key: string) => {
+  const company = companies.get(key);
+
+  return new Set([
+    ...(company?.existingId ? [company.existingId] : []),
+    ...(company ? aliasCrmCompanies(company).map((crmCompany) => crmCompany.Id) : []),
+    ...(crmCompanyIdsByAccount.get(key) ?? []),
+  ]);
+};
+
+const exactlyMatchedCrmIds = new Set(
+  partners.map((row) => findCrmMatch(row)?.Id).filter(Boolean),
+);
+const similarNameMatches = new Map<string, Record<string, string>>();
+const similarCandidatesByCrmId = new Map<string, string[]>();
+const similarCandidatesBySheetId = new Map<string, Record<string, string>[]>();
+
+for (const row of partners) {
+  if (findCrmMatch(row) !== null || accountOf(row) === '') {
+    continue;
+  }
+
+  const companyIds = candidateCrmCompanyIds(normalize(accountOf(row)));
+  const candidates = crmPeople.filter(
+    (person) =>
+      companyIds.has(person['Company Id']) &&
+      !exactlyMatchedCrmIds.has(person.Id) &&
+      isSimilarName(row.name, `${person['Name / First Name']} ${person['Name / Last Name']}`),
+  );
+
+  similarCandidatesBySheetId.set(row.id, candidates);
+
+  for (const candidate of candidates) {
+    similarCandidatesByCrmId.set(candidate.Id, [
+      ...(similarCandidatesByCrmId.get(candidate.Id) ?? []),
+      row.id,
+    ]);
+  }
+}
+
+// Only one-to-one pairs; anything ambiguous stays a new contact
+for (const [sheetId, candidates] of similarCandidatesBySheetId) {
+  if (candidates.length === 1 && similarCandidatesByCrmId.get(candidates[0].Id)?.length === 1) {
+    similarNameMatches.set(sheetId, candidates[0]);
   }
 }
 
@@ -482,6 +709,29 @@ const buildRebuiltTouches = (
     return [];
   }
 
+  // The count is outbound LinkedIn sends in ladder order (checked on Partners)
+  if (proved.length === 0 && tabRules.rebuildFromTouchCount && touchCount > 0 && date !== null) {
+    const fromCount = (channel: string, direction: string, outcome: string, what: string) => ({
+      ...rebuilt(channel, direction, outcome, ''),
+      reason: `The Sheet records ${touchCount} touch(es), last on ${date}; counted in the usual order, ${what}. Dated on the last touch.`,
+    });
+    const ladder = [
+      fromCount('LINKEDIN_CONNECTION', 'OUTBOUND', 'SENT', 'so the connection request was sent'),
+      fromCount('LINKEDIN_CONNECTION', 'INBOUND', 'ACCEPTED', 'so they accepted before message 1'),
+      fromCount('LINKEDIN_MESSAGE', 'OUTBOUND', 'SENT', 'so message 1 was sent'),
+      fromCount('LINKEDIN_MESSAGE', 'OUTBOUND', 'SENT', 'so message 2 was sent'),
+    ];
+
+    return touchCount === 1 ? ladder.slice(0, 1) : touchCount === 2 ? ladder.slice(0, 3) : ladder;
+  }
+
+  if (proved.length === 0 && touchCount > 0 && date === null && tabRules.rebuildFromTouchCount) {
+    flags.push(
+      `The Sheet records ${touchCount} touch(es) but no last-touch date to put them on. Nothing rebuilt.`,
+    );
+    return [];
+  }
+
   if (proved.length === 0 && (touchCount > 0 || date !== null)) {
     flags.push(
       `The Sheet records ${touchCount} touch(es)${date ? `, last on ${date}` : ''}, but the next action ("${nextAction || 'none'}") does not say which. Nothing rebuilt; the cadence restarts unless you tell me otherwise.`,
@@ -504,7 +754,7 @@ const formatDate = (date: string) =>
 const buildNote = (row: Record<string, string>) => {
   const reconciliationRow = reconciliationByContact.get(row.id);
   const lines = [
-    '**From the AirPal CRM Sheet, Partners tab (exported 18 Oct 2026)**',
+    `**From the AirPal CRM Sheet, ${tabRules.label} tab (exported ${tabRules.exportedOn} 2026)**`,
     '',
     row.next_action ? `- Next action: ${row.next_action}` : null,
     row.next_action_date ? `- Next action date: ${formatDate(row.next_action_date)}` : null,
@@ -522,14 +772,13 @@ const buildNote = (row: Record<string, string>) => {
 const people: PlannedPerson[] = partners.map((row) => {
   const flags: string[] = [];
   const skippedEvents: string[] = [];
-  const crmMatch =
-    (row.linkedin_url && crmPersonIndex.linkedin.get(normalizeLinkedin(row.linkedin_url))) ||
-    (row.email && crmPersonIndex.email.get(normalize(row.email))) ||
-    crmPersonIndex.name.get(normalize(row.name)) ||
-    null;
+  const exactMatch = findCrmMatch(row);
+  const crmMatch = exactMatch ?? similarNameMatches.get(row.id) ?? null;
   const matchedBy = crmMatch === null
     ? null
-    : row.linkedin_url && crmPersonIndex.linkedin.get(normalizeLinkedin(row.linkedin_url)) === crmMatch
+    : exactMatch === null
+      ? 'similar name'
+      : row.linkedin_url && crmPersonIndex.linkedin.get(normalizeLinkedin(row.linkedin_url)) === crmMatch
       ? 'linkedin'
       : row.email && crmPersonIndex.email.get(normalize(row.email)) === crmMatch
         ? 'email'
@@ -543,14 +792,41 @@ const people: PlannedPerson[] = partners.map((row) => {
   const stage = MEETING_SCHEDULED_NAMES.has(row.name)
     ? 'MEETING_SCHEDULED'
     : STAGES[row.stage];
-  const health = HEALTHS[row.health];
+  let health: string | undefined = HEALTHS[row.health];
 
   if (stage === undefined) {
     flags.push(`Stage "${row.stage}" has no CRM equivalent.`);
   }
 
-  if (health === undefined) {
+  if (row.health.trim() === '' && tab === 'airports') {
+    health = 'ACTIVE';
+    flags.push('Health is blank in the Sheet; set to Active.');
+  } else if (health === undefined) {
     flags.push(`Health "${row.health}" has no CRM equivalent.`);
+  }
+
+  // Marked contacted but nothing recorded: held so My Day does not suggest a
+  // second connection request to someone already reached.
+  if (
+    tabRules.holdContactedWithoutTouches &&
+    stage === 'CONTACTED_NO_REPLY' &&
+    touches.length === 0 &&
+    health === 'ACTIVE'
+  ) {
+    health = 'HOLD';
+    flags.push(
+      'The Sheet says contacted but records no touches, so it is on Hold: My Day will not suggest a connection request. Resume once you have checked LinkedIn.',
+    );
+  }
+
+  if (stage === 'NOT_CONTACTED' && touches.length > 0) {
+    flags.push('The Sheet says not contacted but records touches; touches rebuilt, stage kept as in the Sheet.');
+  }
+
+  if (accountOf(row) === '') {
+    flags.push('No organisation in the Sheet; imported without one.');
+  } else if (accountOf(row) !== row.account.trim()) {
+    flags.push(`Organisation "${row.account}" merged into "${accountOf(row)}".`);
   }
 
   const ownerEmail = row.owner_name ? OWNER_EMAILS[row.owner_name] ?? null : null;
@@ -597,7 +873,7 @@ const people: PlannedPerson[] = partners.map((row) => {
     name: row.name,
     firstName,
     lastName,
-    companyKey: normalize(row.account),
+    companyKey: accountOf(row) === '' ? null : normalize(accountOf(row)),
     existingPersonId: crmMatch?.Id ?? null,
     existingPersonName: crmMatch
       ? `${crmMatch['Name / First Name']} ${crmMatch['Name / Last Name']}`
@@ -613,7 +889,7 @@ const people: PlannedPerson[] = partners.map((row) => {
     optOutReason,
     nextActionDate: row.next_action_date || null,
     connectionNote: row.connection_note || null,
-    note: { title: 'From the AirPal CRM Sheet (18 Oct)', markdown: buildNote(row) },
+    note: { title: tabRules.noteTitle, markdown: buildNote(row) },
     sheet: {
       stage: row.stage,
       nextAction: row.next_action,
@@ -635,16 +911,26 @@ const people: PlannedPerson[] = partners.map((row) => {
 });
 
 const plan: ImportPlan = {
+  sheetTab: tabRules.label,
   generatedAt: new Date().toISOString(),
   today,
   sources: {
-    partners: { file: path.basename(partnersPath), sha256: sha256(partnersPath) },
-    pack: { file: path.basename(packPath), sha256: sha256(packPath) },
+    sheet: { file: path.basename(sheetPath), sha256: sha256(sheetPath) },
+    ...(packPath ? { pack: { file: path.basename(packPath), sha256: sha256(packPath) } } : {}),
     people: { file: path.basename(peoplePath), sha256: sha256(peoplePath) },
     companies: { file: path.basename(companiesPath), sha256: sha256(companiesPath) },
   },
   companies: [...companies.values()],
   people,
+  crmCompaniesLeftEmpty: crmCompanies
+    .filter((crmCompany) => !claimedCrmCompanyIds.has(crmCompany.Id))
+    .filter((crmCompany) => {
+      const members = crmPeople.filter((person) => person['Company Id'] === crmCompany.Id);
+      const movingIds = new Set(people.map((person) => person.existingPersonId));
+
+      return members.length > 0 && members.every((person) => movingIds.has(person.Id));
+    })
+    .map((crmCompany) => ({ id: crmCompany.Id, name: crmCompany.Name })),
 };
 
 mkdirSync(outDirectory, { recursive: true });

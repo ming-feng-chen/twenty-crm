@@ -43,38 +43,56 @@ type LivePerson = {
   noteTargets: { edges: unknown[] };
 };
 
+type LivePeoplePage = {
+  edges: { node: LivePerson }[];
+  pageInfo: { hasNextPage: boolean; endCursor: string };
+};
+
 const run = async () => {
   const problems: string[] = [];
   const linkedinUrls = plan.people
     .map((person) => person.linkedinUrl)
     .filter((link): link is string => Boolean(link))
     .flatMap((link) => [link, link.replace(/\/+$/, '')]);
-  const { people } = await graphql<{ people: { edges: { node: LivePerson }[] } }>(
-    `query($filter: PersonFilterInput) {
-      people(first: 200, filter: $filter) {
-        edges { node {
-          id name { firstName lastName } linkedinLink { primaryLinkUrl }
-          cadenceStage cadenceHealth cadenceStep nextActionDate optOutReason linkedinConnectionNote
-          company { name group category }
-          touches(first: 50) { edges { node { id } } }
-          noteTargets(first: 50) { edges { node { id } } }
-        } }
-      }
-    }`,
-    {
-      filter: {
-        or: [
-          { linkedinLink: { primaryLinkUrl: { in: linkedinUrls } } },
-          ...plan.people
-            .filter((person) => !person.linkedinUrl)
-            .map((person) => ({
-              name: { firstName: { eq: person.firstName }, lastName: { eq: person.lastName } },
-            })),
-        ],
-      },
-    },
-  );
-  const live = people.edges.map(({ node }) => node);
+  const filter = {
+    or: [
+      { linkedinLink: { primaryLinkUrl: { in: linkedinUrls } } },
+      ...plan.people
+        .filter((person) => !person.linkedinUrl)
+        .map((person) => ({
+          name: { firstName: { eq: person.firstName }, lastName: { eq: person.lastName } },
+        })),
+    ],
+  };
+  const live: LivePerson[] = [];
+  let after: string | null = null;
+
+  for (;;) {
+    const { people }: { people: LivePeoplePage } = await graphql(
+      `query($filter: PersonFilterInput, $after: String) {
+        people(first: 100, after: $after, filter: $filter) {
+          edges { node {
+            id name { firstName lastName } linkedinLink { primaryLinkUrl }
+            cadenceStage cadenceHealth cadenceStep nextActionDate optOutReason linkedinConnectionNote
+            company { name group category }
+            touches(first: 50) { edges { node { id } } }
+            noteTargets(first: 50) { edges { node { id } } }
+          } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { filter, after },
+    );
+
+    live.push(...people.edges.map(({ node }) => node));
+
+    if (!people.pageInfo.hasNextPage) {
+      break;
+    }
+
+    after = people.pageInfo.endCursor;
+  }
+
   const companyByKey = new Map(plan.companies.map((company) => [company.key, company]));
   let stepMatches = 0;
   let dateMatches = 0;
@@ -94,7 +112,7 @@ const run = async () => {
       continue;
     }
 
-    const company = companyByKey.get(person.companyKey);
+    const company = person.companyKey === null ? undefined : companyByKey.get(person.companyKey);
     const checks: [string, unknown, unknown][] = [
       ['stage', match.cadenceStage, person.stage],
       ['health', match.cadenceHealth, person.health],
