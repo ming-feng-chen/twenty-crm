@@ -8,6 +8,11 @@ import { type NavigationMenuItem } from '~/generated-metadata/graphql';
 
 import { NavigationMenuItemFolderSubItem } from '@/navigation-menu-item/display/folder/components/NavigationMenuItemFolderSubItem';
 
+jest.mock(
+  '@/navigation-menu-item/display/item-count/hooks/useNavigationMenuItemCount',
+  () => ({ useNavigationMenuItemCount: () => undefined }),
+);
+
 const LocationProbe = () => {
   const location = useLocation();
 

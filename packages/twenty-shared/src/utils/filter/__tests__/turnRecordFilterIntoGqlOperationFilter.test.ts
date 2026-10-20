@@ -161,6 +161,23 @@ const fields = [
     type: FieldMetadataType.UUID,
     label: 'Record ID',
   },
+  {
+    id: 'f-junction-assignees',
+    name: 'assignees',
+    type: FieldMetadataType.RELATION,
+    label: 'Assignee',
+    settings: {
+      relationType: RelationType.ONE_TO_MANY,
+      junctionTargetFieldId: 'f-junction-workspace-member',
+    },
+  },
+  {
+    id: 'f-junction-workspace-member',
+    name: 'workspaceMember',
+    type: FieldMetadataType.RELATION,
+    label: 'Member',
+    settings: { relationType: RelationType.MANY_TO_ONE },
+  },
 ];
 
 const filterValueDependencies = { timeZone: 'UTC' };
@@ -611,6 +628,91 @@ describe('turnRecordFilterIntoRecordGqlOperationFilter', () => {
       });
 
       expect(result).toHaveProperty('or');
+    });
+  });
+
+  describe('RELATION filter through a to-many junction', () => {
+    const memberId = '550e8400-e29b-41d4-a716-446655440000';
+
+    const makeJunctionFilter = (operand: RecordFilterOperand, value = '') =>
+      ({
+        ...makeFilter('f-junction-assignees', operand, value, 'RELATION'),
+        relationTargetFieldMetadataId: 'f-junction-workspace-member',
+      }) as RecordFilter;
+
+    it('should match records where some related member is selected for IS', () => {
+      const result = turnRecordFilterIntoRecordGqlOperationFilter({
+        filterValueDependencies,
+        recordFilter: makeJunctionFilter(
+          RecordFilterOperand.IS,
+          `["${memberId}"]`,
+        ),
+        fieldMetadataItemById,
+      });
+
+      expect(result).toEqual({
+        assignees: { workspaceMemberId: { in: [memberId] } },
+      });
+    });
+
+    it('should resolve the current workspace member for IS', () => {
+      const result = turnRecordFilterIntoRecordGqlOperationFilter({
+        filterValueDependencies: {
+          ...filterValueDependencies,
+          currentWorkspaceMemberId: memberId,
+        },
+        recordFilter: makeJunctionFilter(
+          RecordFilterOperand.IS,
+          JSON.stringify({
+            isCurrentWorkspaceMemberSelected: true,
+            selectedRecordIds: [],
+          }),
+        ),
+        fieldMetadataItemById,
+      });
+
+      expect(result).toEqual({
+        assignees: { workspaceMemberId: { in: [memberId] } },
+      });
+    });
+
+    it('should exclude records where any related member is selected for IS_NOT', () => {
+      const result = turnRecordFilterIntoRecordGqlOperationFilter({
+        filterValueDependencies,
+        recordFilter: makeJunctionFilter(
+          RecordFilterOperand.IS_NOT,
+          `["${memberId}"]`,
+        ),
+        fieldMetadataItemById,
+      });
+
+      expect(result).toEqual({
+        not: { assignees: { workspaceMemberId: { in: [memberId] } } },
+      });
+    });
+
+    it('should match records without related records for IS_EMPTY', () => {
+      const result = turnRecordFilterIntoRecordGqlOperationFilter({
+        filterValueDependencies,
+        recordFilter: makeJunctionFilter(RecordFilterOperand.IS_EMPTY),
+        fieldMetadataItemById,
+      });
+
+      expect(result).toEqual({
+        not: { assignees: { id: { is: 'NOT_NULL' } } },
+      });
+    });
+
+    it('should match records with any related record for IS_NOT_EMPTY', () => {
+      const result = turnRecordFilterIntoRecordGqlOperationFilter({
+        filterValueDependencies,
+        recordFilter: makeJunctionFilter(RecordFilterOperand.IS_NOT_EMPTY),
+        fieldMetadataItemById,
+      });
+
+      expect(result).toEqual({
+        assignees: { id: { is: 'NOT_NULL' } },
+      });
     });
   });
 

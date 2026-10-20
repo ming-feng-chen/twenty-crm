@@ -1,5 +1,6 @@
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
 import { isHiddenSystemField } from '@/object-metadata/utils/isHiddenSystemField';
+import { hasJunctionTargetFieldId } from '@/object-record/record-field/ui/utils/junction/hasJunctionTargetFieldId';
 import { FieldMetadataType, RelationType } from '~/generated-metadata/graphql';
 
 export const getFilterFilterableFieldMetadataItems = ({
@@ -15,10 +16,17 @@ export const getFilterFilterableFieldMetadataItems = ({
       field.type === FieldMetadataType.RELATION &&
       (field.name === 'workflow' || field.name === 'workflowVersion');
 
-    const isRelationFieldHandled = !(
+    const isJunctionRelationField =
       field.type === FieldMetadataType.RELATION &&
-      field.relation?.type !== RelationType.MANY_TO_ONE
-    );
+      field.relation?.type === RelationType.ONE_TO_MANY &&
+      hasJunctionTargetFieldId(field.settings);
+
+    const isRelationFieldHandled =
+      isJunctionRelationField ||
+      !(
+        field.type === FieldMetadataType.RELATION &&
+        field.relation?.type !== RelationType.MANY_TO_ONE
+      );
 
     const isFieldTypeFilterable = [
       FieldMetadataType.BOOLEAN,

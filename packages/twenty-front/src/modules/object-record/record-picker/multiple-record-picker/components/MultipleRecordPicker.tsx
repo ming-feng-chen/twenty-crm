@@ -9,6 +9,8 @@ import { MultipleRecordPickerCreateTargetSelect } from '@/object-record/record-p
 import { MultipleRecordPickerItemsDisplay } from '@/object-record/record-picker/multiple-record-picker/components/MultipleRecordPickerItemsDisplay';
 import { MultipleRecordPickerOnClickOutsideEffect } from '@/object-record/record-picker/multiple-record-picker/components/MultipleRecordPickerOnClickOutsideEffect';
 import { MultipleRecordPickerSearchInput } from '@/object-record/record-picker/multiple-record-picker/components/MultipleRecordPickerSearchInput';
+import { MultipleRecordPickerSelectAllMenuItem } from '@/object-record/record-picker/multiple-record-picker/components/MultipleRecordPickerSelectAllMenuItem';
+import { type MultipleRecordPickerSelectAllOption } from '@/object-record/record-picker/multiple-record-picker/types/MultipleRecordPickerSelectAllOption';
 import { useMultipleRecordPickerPerformSearch } from '@/object-record/record-picker/multiple-record-picker/hooks/useMultipleRecordPickerPerformSearch';
 import { MultipleRecordPickerComponentInstanceContext } from '@/object-record/record-picker/multiple-record-picker/states/contexts/MultipleRecordPickerComponentInstanceContext';
 import { multipleRecordPickerIsLoadingComponentState } from '@/object-record/record-picker/multiple-record-picker/states/multipleRecordPickerIsLoadingComponentState';
@@ -44,6 +46,7 @@ type MultipleRecordPickerProps = {
   onClickOutside: () => void;
   focusId: string;
   dropdownWidth?: number;
+  selectAllOption?: MultipleRecordPickerSelectAllOption;
 };
 
 export const MultipleRecordPicker = ({
@@ -56,6 +59,7 @@ export const MultipleRecordPicker = ({
   focusId,
   dropdownWidth,
   isCreatePending = false,
+  selectAllOption,
 }: MultipleRecordPickerProps) => {
   const [isSelectingCreateTarget, setIsSelectingCreateTarget] = useState(false);
   // oxlint-disable-next-line twenty/no-state-useref
@@ -233,6 +237,13 @@ export const MultipleRecordPicker = ({
       </DropdownMenuItemsContainer>
     ) : null;
 
+  const selectAllSection = isDefined(selectAllOption) ? (
+    <MultipleRecordPickerSelectAllMenuItem
+      componentInstanceId={componentInstanceId}
+      selectAllOption={selectAllOption}
+    />
+  ) : null;
+
   return (
     <MultipleRecordPickerComponentInstanceContext.Provider
       value={{ instanceId: componentInstanceId }}
@@ -258,6 +269,7 @@ export const MultipleRecordPicker = ({
             {layoutDirection === 'search-bar-on-bottom' && (
               <>
                 {createNewButtonSection}
+                {selectAllSection}
                 <MultipleRecordPickerItemsDisplay
                   onChange={onChange}
                   focusId={focusId}
@@ -267,6 +279,7 @@ export const MultipleRecordPicker = ({
             <MultipleRecordPickerSearchInput />
             {layoutDirection === 'search-bar-on-top' && (
               <>
+                {selectAllSection}
                 <MultipleRecordPickerItemsDisplay
                   onChange={onChange}
                   focusId={focusId}

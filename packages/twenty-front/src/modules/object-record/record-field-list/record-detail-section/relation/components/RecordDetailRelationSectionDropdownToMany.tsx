@@ -7,6 +7,7 @@ import { useRecordFieldsScopeContextOrThrow } from '@/object-record/record-field
 import { FieldContext } from '@/object-record/record-field/ui/contexts/FieldContext';
 import { useCreateJunctionRecordWithNestedTarget } from '@/object-record/record-field/ui/hooks/useCreateJunctionRecordWithNestedTarget';
 import { useUpdateJunctionRelationFromCell } from '@/object-record/record-field/ui/hooks/useUpdateJunctionRelationFromCell';
+import { useWorkspaceMemberJunctionSelectAllOption } from '@/object-record/record-field/ui/hooks/useWorkspaceMemberJunctionSelectAllOption';
 import { useAddNewRecordAndOpenSidePanel } from '@/object-record/record-field/ui/meta-types/input/hooks/useAddNewRecordAndOpenSidePanel';
 import { useUpdateRelationOneToManyFieldInput } from '@/object-record/record-field/ui/meta-types/input/hooks/useUpdateRelationOneToManyFieldInput';
 import { type FieldDefinition } from '@/object-record/record-field/ui/types/FieldDefinition';
@@ -63,12 +64,22 @@ export const RecordDetailRelationSectionDropdownToMany = ({
   const relationFieldDefinition =
     fieldDefinition as FieldDefinition<FieldRelationMetadata>;
 
-  const { updateJunctionRelationFromCell, junctionConfig } =
-    useUpdateJunctionRelationFromCell({
-      fieldMetadataItem,
-      fieldDefinition: relationFieldDefinition,
-      recordId,
-    });
+  const {
+    updateJunctionRelationFromCell,
+    updateJunctionRelationsFromCell,
+    junctionConfig,
+  } = useUpdateJunctionRelationFromCell({
+    fieldMetadataItem,
+    fieldDefinition: relationFieldDefinition,
+    recordId,
+  });
+
+  const selectAllOption = useWorkspaceMemberJunctionSelectAllOption({
+    junctionConfig,
+    onChange: (changedMorphItems) => {
+      void updateJunctionRelationsFromCell({ morphItems: changedMorphItems });
+    },
+  });
 
   const isJunctionRelation = isUsableJunctionConfig(junctionConfig);
   const isInvalidJunctionRelation =
@@ -251,6 +262,7 @@ export const RecordDetailRelationSectionDropdownToMany = ({
               : undefined
           }
           isCreatePending={isCreatingJunctionRecord}
+          selectAllOption={selectAllOption}
           onChange={handleChange}
           onSubmit={() => {
             closeDropdown(dropdownId);

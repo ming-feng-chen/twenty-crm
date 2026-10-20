@@ -1,4 +1,7 @@
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
+import { getJunctionFilterRelationTargetFieldMetadataId } from '@/object-record/record-filter/utils/getJunctionFilterRelationTargetFieldMetadataId';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { getDefaultAdvancedFilterOperand } from '@/object-record/advanced-filter/utils/getDefaultAdvancedFilterOperand';
 import { useGetInitialFilterValue } from '@/object-record/object-filter-dropdown/hooks/useGetInitialFilterValue';
 import { fieldMetadataItemIdUsedInDropdownComponentState } from '@/object-record/object-filter-dropdown/states/fieldMetadataItemIdUsedInDropdownComponentState';
@@ -50,6 +53,8 @@ export const useApplyAdvancedFilterSourceField = () => {
     currentRecordFiltersComponentState,
   );
 
+  const objectMetadataItems = useAtomStateValue(objectMetadataItemsSelector);
+
   const { upsertRecordFilter } = useUpsertRecordFilter();
   const { getInitialFilterValue } = useGetInitialFilterValue();
 
@@ -83,6 +88,12 @@ export const useApplyAdvancedFilterSourceField = () => {
       (recordFilter) => recordFilter.id === recordFilterId,
     );
 
+    const relationTargetFieldMetadataId =
+      getJunctionFilterRelationTargetFieldMetadataId({
+        fieldMetadataItem: sourceFieldMetadataItem,
+        objectMetadataItems,
+      });
+
     const newAdvancedFilter = {
       id: recordFilterId,
       fieldMetadataId: sourceFieldMetadataItem.id,
@@ -95,11 +106,13 @@ export const useApplyAdvancedFilterSourceField = () => {
       type: filterType,
       label: sourceFieldMetadataItem.label,
       subFieldName: null,
-      relationTargetFieldMetadataId: null,
+      relationTargetFieldMetadataId,
     } satisfies RecordFilter;
 
     setSubFieldNameUsedInDropdown(null);
-    setRelationTargetFieldMetadataIdUsedInDropdown(null);
+    setRelationTargetFieldMetadataIdUsedInDropdown(
+      relationTargetFieldMetadataId,
+    );
 
     setObjectFilterDropdownSearchInput('');
 

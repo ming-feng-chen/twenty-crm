@@ -10,6 +10,7 @@ import { useNavigateToNavigationMenuItemLink } from '@/navigation-menu-item/comm
 import { NavigationMenuItemIcon } from '@/navigation-menu-item/display/components/NavigationMenuItemIcon';
 import { useIdentifyActiveNavigationMenuItems } from '@/navigation-menu-item/display/hooks/useIdentifyActiveNavigationMenuItems';
 import { useIsNavigationMenuItemEditHighlighted } from '@/navigation-menu-item/display/hooks/useIsNavigationMenuItemEditHighlighted';
+import { useNavigationMenuItemCount } from '@/navigation-menu-item/display/item-count/hooks/useNavigationMenuItemCount';
 import { getNavigationMenuItemObjectNameSingular } from '@/navigation-menu-item/display/object/utils/getNavigationMenuItemObjectNameSingular';
 import { getObjectMetadataForNavigationMenuItem } from '@/navigation-menu-item/display/object/utils/getObjectMetadataForNavigationMenuItem';
 import { getObjectNavigationMenuItemSecondaryLabel } from '@/navigation-menu-item/display/object/utils/getObjectNavigationMenuItemSecondaryLabel';
@@ -132,6 +133,11 @@ export const NavigationMenuItemFolderSubItem = ({
     ? t`System`
     : viewSecondaryLabel;
 
+  const count = useNavigationMenuItemCount({
+    navigationMenuItem,
+    objectNameSingular: objectMetadataItem?.nameSingular,
+  });
+
   return (
     <NavigationMenuItemEditable item={navigationMenuItem}>
       <NavigationDrawerSubItem
@@ -152,6 +158,7 @@ export const NavigationMenuItemFolderSubItem = ({
         rightOptions={rightOptions}
         isDragging={isDragging}
         triggerEvent="CLICK"
+        count={count}
       />
     </NavigationMenuItemEditable>
   );

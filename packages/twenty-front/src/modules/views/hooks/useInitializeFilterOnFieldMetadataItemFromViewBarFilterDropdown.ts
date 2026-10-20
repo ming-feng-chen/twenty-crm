@@ -5,6 +5,9 @@ import { fieldMetadataItemIdUsedInDropdownComponentState } from '@/object-record
 import { objectFilterDropdownCurrentRecordFilterComponentState } from '@/object-record/object-filter-dropdown/states/objectFilterDropdownCurrentRecordFilterComponentState';
 import { objectFilterDropdownFilterIsSelectedComponentState } from '@/object-record/object-filter-dropdown/states/objectFilterDropdownFilterIsSelectedComponentState';
 import { objectFilterDropdownSearchInputComponentState } from '@/object-record/object-filter-dropdown/states/objectFilterDropdownSearchInputComponentState';
+import { relationTargetFieldMetadataIdUsedInDropdownComponentState } from '@/object-record/object-filter-dropdown/states/relationTargetFieldMetadataIdUsedInDropdownComponentState';
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
+import { getJunctionFilterRelationTargetFieldMetadataId } from '@/object-record/record-filter/utils/getJunctionFilterRelationTargetFieldMetadataId';
 import { selectedOperandInDropdownComponentState } from '@/object-record/object-filter-dropdown/states/selectedOperandInDropdownComponentState';
 import { currentRecordFiltersComponentState } from '@/object-record/record-filter/states/currentRecordFiltersComponentState';
 import { type RecordFilter } from '@/object-record/record-filter/types/RecordFilter';
@@ -52,6 +55,11 @@ export const useInitializeFilterOnFieldMetadataItemFromViewBarFilterDropdown =
         objectFilterDropdownSearchInputComponentState,
       );
 
+    const relationTargetFieldMetadataIdUsedInDropdownCallbackState =
+      useAtomComponentStateCallbackState(
+        relationTargetFieldMetadataIdUsedInDropdownComponentState,
+      );
+
     const { upsertObjectFilterDropdownCurrentFilter } =
       useUpsertObjectFilterDropdownCurrentFilter();
 
@@ -69,6 +77,14 @@ export const useInitializeFilterOnFieldMetadataItemFromViewBarFilterDropdown =
           store.set(
             fieldMetadataItemUsedInDropdownCallbackState,
             fieldMetadataItem.id,
+          );
+
+          store.set(
+            relationTargetFieldMetadataIdUsedInDropdownCallbackState,
+            getJunctionFilterRelationTargetFieldMetadataId({
+              fieldMetadataItem,
+              objectMetadataItems: store.get(objectMetadataItemsSelector.atom),
+            }),
           );
 
           const currentRecordFilters = store.get(
@@ -153,6 +169,7 @@ export const useInitializeFilterOnFieldMetadataItemFromViewBarFilterDropdown =
           currentRecordFiltersCallbackState,
           objectFilterDropdownFilterIsSelectedCallbackState,
           objectFilterDropdownSearchInputCallbackState,
+          relationTargetFieldMetadataIdUsedInDropdownCallbackState,
           pushFocusItemToFocusStack,
           objectFilterDropdownCurrentRecordFilterCallbackState,
           selectedOperandInDropdownCallbackState,

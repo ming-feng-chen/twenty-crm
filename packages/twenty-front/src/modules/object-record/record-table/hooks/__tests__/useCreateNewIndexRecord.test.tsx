@@ -34,6 +34,15 @@ jest.mock(
   }),
 );
 
+jest.mock(
+  '@/object-record/record-table/hooks/useCreateJunctionRecordsFromFilters',
+  () => ({
+    useCreateJunctionRecordsFromFilters: () => ({
+      createJunctionRecordsFromFilters: async () => undefined,
+    }),
+  }),
+);
+
 const INSTANCE_ID = 'task-table';
 const GROUP_ID = 'todo-group';
 const taskMetadata = getMockObjectMetadataItemOrThrow('task');

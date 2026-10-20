@@ -15,6 +15,10 @@ export const useRefetchFindManyRecords = ({
 
     await apolloCoreClient.refetchQueries({
       include: [findManyRecordsQueryName],
+      // Matching by name also picks up skipped (standby) queries, such as a
+      // lookup by ids with nothing selected, which the server rejects
+      onQueryUpdated: (observableQuery) =>
+        observableQuery.options.fetchPolicy !== 'standby',
     });
   };
 

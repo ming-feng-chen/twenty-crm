@@ -25,4 +25,5 @@ export type NavigationDrawerItemProps = {
   isSelectedInEditMode?: boolean;
   variant?: 'default' | 'tertiary' | 'placeholder';
   isUnread?: boolean;
+  count?: number;
 };

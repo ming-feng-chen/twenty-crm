@@ -5,6 +5,7 @@ import { recordGroupDefinitionsComponentSelector } from '@/object-record/record-
 import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
 import { recordIndexRecordIdsByGroupComponentFamilyState } from '@/object-record/record-index/states/recordIndexRecordIdsByGroupComponentFamilyState';
 import { useBuildRecordInputFromFilters } from '@/object-record/record-table/hooks/useBuildRecordInputFromFilters';
+import { useCreateJunctionRecordsFromFilters } from '@/object-record/record-table/hooks/useCreateJunctionRecordsFromFilters';
 import { type OnRecordCreated } from '@/object-record/types/OnRecordCreated';
 import { useAtomComponentFamilyStateCallbackState } from '@/ui/utilities/state/jotai/hooks/useAtomComponentFamilyStateCallbackState';
 import { useAtomComponentSelectorValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentSelectorValue';
@@ -44,8 +45,16 @@ export const useCreateNewIndexRecord = ({
     instanceId,
   });
 
+  const { createJunctionRecordsFromFilters } =
+    useCreateJunctionRecordsFromFilters({
+      objectMetadataItem,
+      instanceId,
+    });
+
   const onRecordCreated = useCallback<OnRecordCreated>(
     ({ record: createdRecord, recordInput }) => {
+      void createJunctionRecordsFromFilters(createdRecord.id);
+
       if (isDefined(recordIndexGroupFieldMetadataItem)) {
         const recordGroup = recordGroupDefinitions.find(
           findByProperty(
@@ -82,6 +91,7 @@ export const useCreateNewIndexRecord = ({
       }
     },
     [
+      createJunctionRecordsFromFilters,
       store,
       recordGroupDefinitions,
       recordIndexGroupFieldMetadataItem,

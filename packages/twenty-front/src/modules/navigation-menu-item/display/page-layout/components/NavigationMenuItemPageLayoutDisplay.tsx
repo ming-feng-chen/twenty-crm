@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 
 import { isLayoutCustomizationModeEnabledState } from '@/layout-customization/states/isLayoutCustomizationModeEnabledState';
 import { NavigationMenuItemIcon } from '@/navigation-menu-item/display/components/NavigationMenuItemIcon';
+import { useNavigationMenuItemCount } from '@/navigation-menu-item/display/item-count/hooks/useNavigationMenuItemCount';
 import { getPageLayoutNavigationMenuItemComputedLink } from '@/navigation-menu-item/display/page-layout/utils/getPageLayoutNavigationMenuItemComputedLink';
 import type { NavigationMenuItemSectionContentProps } from '@/navigation-menu-item/display/sections/types/NavigationMenuItemSectionContentProps';
 import { NavigationDrawerItem } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerItem';
@@ -27,6 +28,8 @@ export const NavigationMenuItemPageLayoutDisplay = ({
 
   const isActive = computedLink !== '' && location.pathname === computedLink;
 
+  const count = useNavigationMenuItemCount({ navigationMenuItem: item });
+
   return (
     <NavigationDrawerItem
       label={label}
@@ -45,6 +48,7 @@ export const NavigationMenuItemPageLayoutDisplay = ({
       isSelectedInEditMode={editModeProps?.isSelectedInEditMode}
       isDragging={isDragging}
       triggerEvent="CLICK"
+      count={count}
       rightOptions={rightOptions}
     />
   );

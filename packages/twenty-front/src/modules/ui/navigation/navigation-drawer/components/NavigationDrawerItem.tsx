@@ -5,7 +5,10 @@ import { useIsNavigationDrawerContentExpanded } from '@/ui/navigation/navigation
 import { TooltipDelay } from '@/ui/layout/tooltip/constants/TooltipDelay';
 import { NavigationDrawerAnimatedCollapseWrapper } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerAnimatedCollapseWrapper';
 import { NavigationDrawerItemBreadcrumb } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerItemBreadcrumb';
+import { StyledNavigationDrawerCountDot } from '@/ui/navigation/navigation-drawer/components/StyledNavigationDrawerCountDot';
+import { StyledNavigationDrawerCountPill } from '@/ui/navigation/navigation-drawer/components/StyledNavigationDrawerCountPill';
 import { StyledNavigationDrawerUnreadDot } from '@/ui/navigation/navigation-drawer/components/StyledNavigationDrawerUnreadDot';
+import { formatNavigationDrawerItemCount } from '@/ui/navigation/navigation-drawer/utils/formatNavigationDrawerItemCount';
 import { NAVIGATION_DRAWER_COLLAPSED_BUTTON_SIZE } from '@/ui/navigation/navigation-drawer/constants/NavigationDrawerCollapsedButtonSize';
 import { NavigationDrawerItemEditingContext } from '@/ui/navigation/navigation-drawer/contexts/NavigationDrawerItemEditingContext';
 import { useNavigationDrawerTooltip } from '@/ui/navigation/navigation-drawer/hooks/useNavigationDrawerTooltip';
@@ -221,6 +224,7 @@ export const NavigationDrawerItem = ({
   isSelectedInEditMode = false,
   variant = 'default',
   isUnread = false,
+  count,
 }: NavigationDrawerItemProps) => {
   const theme = useTheme();
   const accessibleKeyLabels = useShortcutAccessibleKeyLabels();
@@ -238,7 +242,9 @@ export const NavigationDrawerItem = ({
   const keyboardKeys = isObject(modifier) ? modifier.keyboard : undefined;
 
   const showBreadcrumb = indentationLevel === 2;
-  const showStyledSpacer = isDefined(modifier) || isDefined(rightOptions);
+  const hasCount = isDefined(count) && count > 0;
+  const showStyledSpacer =
+    isDefined(modifier) || isDefined(rightOptions) || hasCount;
 
   const handleMobileNavigation = () => {
     if (isMobile && !preventCollapseOnMobile) {
@@ -351,8 +357,11 @@ export const NavigationDrawerItem = ({
                         : 'currentColor'
                     }
                   />
-                  {isUnread && !isExpanded && (
-                    <StyledNavigationDrawerUnreadDot />
+                  {hasCount && !isExpanded ? (
+                    <StyledNavigationDrawerCountDot />
+                  ) : (
+                    isUnread &&
+                    !isExpanded && <StyledNavigationDrawerUnreadDot />
                   )}
                 </StyledIcon>
               )
@@ -395,6 +404,14 @@ export const NavigationDrawerItem = ({
             {isNew && (
               <NavigationDrawerAnimatedCollapseWrapper>
                 <Badge>{t`New`}</Badge>
+              </NavigationDrawerAnimatedCollapseWrapper>
+            )}
+
+            {hasCount && (
+              <NavigationDrawerAnimatedCollapseWrapper>
+                <StyledNavigationDrawerCountPill>
+                  {formatNavigationDrawerItemCount(count)}
+                </StyledNavigationDrawerCountPill>
               </NavigationDrawerAnimatedCollapseWrapper>
             )}
 

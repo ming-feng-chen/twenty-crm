@@ -47,6 +47,7 @@ import {
   getPeriodStart,
   isDefined,
   isNonEmptyArray,
+  isPlainObject,
   isRecordFilterValueValid,
   resolveDateFilter,
   resolveDateTimeFilter,
@@ -102,6 +103,65 @@ export type FieldShared = {
   label: string;
   relation?: { sourceObjectMetadata: { id: string } } | null;
   morphRelations?: FieldSharedMorphRelation[] | null;
+  settings?: unknown;
+};
+
+const isToManyRelationField = (field: FieldShared) =>
+  field.type === FieldMetadataType.RELATION &&
+  isPlainObject(field.settings) &&
+  field.settings.relationType === 'ONE_TO_MANY';
+
+// Through a to-many relation (such as a junction), a record filter must hold
+// for the set of related records: "is not" means none of them match, and
+// emptiness is about whether any related record exists at all.
+const buildToManyRelationTraversalFilter = ({
+  traversalFieldName,
+  recordFilter,
+  targetFieldMetadataItem,
+  filterValueDependencies,
+}: {
+  traversalFieldName: string;
+  recordFilter: Omit<RecordFilter, 'id'>;
+  targetFieldMetadataItem: FieldShared;
+  filterValueDependencies: RecordFilterValueDependencies;
+}): RecordGqlOperationFilter | undefined => {
+  const anyRelatedRecordFilter = {
+    [traversalFieldName]: { id: { is: 'NOT_NULL' } },
+  } as RecordGqlOperationFilter;
+
+  switch (recordFilter.operand) {
+    case RecordFilterOperand.IS_EMPTY:
+      return { not: anyRelatedRecordFilter };
+    case RecordFilterOperand.IS_NOT_EMPTY:
+      return anyRelatedRecordFilter;
+    case RecordFilterOperand.IS:
+    case RecordFilterOperand.IS_NOT: {
+      const matchingRelatedRecordFilter = buildDirectFieldGqlOperationFilter({
+        recordFilter: {
+          ...recordFilter,
+          operand: RecordFilterOperand.IS,
+          fieldMetadataId: targetFieldMetadataItem.id,
+          relationTargetFieldMetadataId: null,
+        },
+        fieldMetadataItem: targetFieldMetadataItem,
+        filterValueDependencies,
+      });
+
+      if (!isDefined(matchingRelatedRecordFilter)) {
+        return undefined;
+      }
+
+      const someRelatedRecordMatchesFilter = {
+        [traversalFieldName]: matchingRelatedRecordFilter,
+      } as RecordGqlOperationFilter;
+
+      return recordFilter.operand === RecordFilterOperand.IS
+        ? someRelatedRecordMatchesFilter
+        : { not: someRelatedRecordMatchesFilter };
+    }
+    default:
+      return undefined;
+  }
 };
 
 type TurnRecordFilterIntoRecordGqlOperationFilterParams = {
@@ -182,6 +242,18 @@ export const turnRecordFilterIntoRecordGqlOperationFilter = ({
       sourceFieldMetadataItem,
       targetFieldMetadataItem,
     });
+
+    if (
+      isToManyRelationField(sourceFieldMetadataItem) &&
+      targetFieldMetadataItem.type === FieldMetadataType.RELATION
+    ) {
+      return buildToManyRelationTraversalFilter({
+        traversalFieldName,
+        recordFilter,
+        targetFieldMetadataItem,
+        filterValueDependencies,
+      });
+    }
 
     const innerFilter = buildDirectFieldGqlOperationFilter({
       recordFilter: {

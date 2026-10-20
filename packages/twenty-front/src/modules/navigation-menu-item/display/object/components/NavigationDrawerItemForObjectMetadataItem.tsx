@@ -6,6 +6,7 @@ import { isLayoutCustomizationModeEnabledState } from '@/layout-customization/st
 import { lastClickedNavigationMenuItemIdState } from '@/navigation-menu-item/common/states/lastClickedNavigationMenuItemIdState';
 import { recordIdentifierToObjectRecordIdentifier } from '@/navigation-menu-item/common/utils/recordIdentifierToObjectRecordIdentifier';
 import { useIdentifyActiveNavigationMenuItems } from '@/navigation-menu-item/display/hooks/useIdentifyActiveNavigationMenuItems';
+import { useNavigationMenuItemCount } from '@/navigation-menu-item/display/item-count/hooks/useNavigationMenuItemCount';
 import { getObjectDrawerItemNavigationPath } from '@/navigation-menu-item/display/object/utils/getObjectDrawerItemNavigationPath';
 import { getNavigationMenuItemLabel } from '@/navigation-menu-item/display/utils/getNavigationMenuItemLabel';
 import { isCoreWorkflowsObjectNavigationMenuItem } from '@/navigation-menu-item/display/utils/isCoreWorkflowsObjectNavigationMenuItem';
@@ -177,6 +178,11 @@ export const NavigationDrawerItemForObjectMetadataItem = ({
   const showInaccessibleLock =
     isLayoutCustomizationModeEnabled && !canReadObjectRecords;
 
+  const count = useNavigationMenuItemCount({
+    navigationMenuItem,
+    objectNameSingular: objectMetadataItem.nameSingular,
+  });
+
   return (
     <NavigationDrawerItem
       label={label}
@@ -194,6 +200,7 @@ export const NavigationDrawerItemForObjectMetadataItem = ({
       isSelectedInEditMode={isSelectedInEditMode}
       isDragging={isDragging}
       triggerEvent={isLayoutCustomizationModeEnabled ? 'CLICK' : undefined}
+      count={count}
       alwaysShowRightOptions={showInaccessibleLock}
       rightOptions={
         showInaccessibleLock ? (

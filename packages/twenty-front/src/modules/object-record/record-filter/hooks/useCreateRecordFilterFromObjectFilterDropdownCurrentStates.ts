@@ -1,4 +1,6 @@
 import { fieldMetadataItemUsedInDropdownComponentSelector } from '@/object-record/object-filter-dropdown/states/fieldMetadataItemUsedInDropdownComponentSelector';
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
+import { getJunctionFilterRelationTargetFieldMetadataId } from '@/object-record/record-filter/utils/getJunctionFilterRelationTargetFieldMetadataId';
 import { selectedOperandInDropdownComponentState } from '@/object-record/object-filter-dropdown/states/selectedOperandInDropdownComponentState';
 import { subFieldNameUsedInDropdownComponentState } from '@/object-record/object-filter-dropdown/states/subFieldNameUsedInDropdownComponentState';
 import { type RecordFilter } from '@/object-record/record-filter/types/RecordFilter';
@@ -72,6 +74,11 @@ export const useCreateRecordFilterFromObjectFilterDropdownCurrentStates =
           type: filterType,
           value: '',
           subFieldName: subFieldNameUsedInDropdown,
+          relationTargetFieldMetadataId:
+            getJunctionFilterRelationTargetFieldMetadataId({
+              fieldMetadataItem: fieldMetadataItemUsedInDropdown,
+              objectMetadataItems: store.get(objectMetadataItemsSelector.atom),
+            }),
         };
 
         return { newRecordFilterFromObjectFilterDropdownStates };

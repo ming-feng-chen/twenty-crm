@@ -7,6 +7,7 @@ import { FieldContext } from '@/object-record/record-field/ui/contexts/FieldCont
 import { FieldInputEventContext } from '@/object-record/record-field/ui/contexts/FieldInputEventContext';
 import { useCreateJunctionRecordWithNestedTarget } from '@/object-record/record-field/ui/hooks/useCreateJunctionRecordWithNestedTarget';
 import { useUpdateJunctionRelationFromCell } from '@/object-record/record-field/ui/hooks/useUpdateJunctionRelationFromCell';
+import { useWorkspaceMemberJunctionSelectAllOption } from '@/object-record/record-field/ui/hooks/useWorkspaceMemberJunctionSelectAllOption';
 import { useAddNewRecordAndOpenSidePanel } from '@/object-record/record-field/ui/meta-types/input/hooks/useAddNewRecordAndOpenSidePanel';
 import { useUpdateRelationOneToManyFieldInput } from '@/object-record/record-field/ui/meta-types/input/hooks/useUpdateRelationOneToManyFieldInput';
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
@@ -46,12 +47,22 @@ export const RelationOneToManyFieldInput = () => {
   const relationFieldDefinition =
     fieldDefinition as FieldDefinition<FieldRelationMetadata>;
 
-  const { updateJunctionRelationFromCell, junctionConfig } =
-    useUpdateJunctionRelationFromCell({
-      fieldMetadataItem,
-      fieldDefinition: relationFieldDefinition,
-      recordId,
-    });
+  const {
+    updateJunctionRelationFromCell,
+    updateJunctionRelationsFromCell,
+    junctionConfig,
+  } = useUpdateJunctionRelationFromCell({
+    fieldMetadataItem,
+    fieldDefinition: relationFieldDefinition,
+    recordId,
+  });
+
+  const selectAllOption = useWorkspaceMemberJunctionSelectAllOption({
+    junctionConfig,
+    onChange: (changedMorphItems) => {
+      void updateJunctionRelationsFromCell({ morphItems: changedMorphItems });
+    },
+  });
 
   const isJunctionRelation = junctionConfig?.isValid === true;
   const isInvalidJunctionRelation = junctionConfig?.isValid === false;
@@ -155,6 +166,7 @@ export const RelationOneToManyFieldInput = () => {
           : undefined
       }
       isCreatePending={isCreatingJunctionRecord}
+      selectAllOption={selectAllOption}
       onClickOutside={handleSubmit}
       layoutDirection={
         recordFieldInputLayoutDirection === 'downward'

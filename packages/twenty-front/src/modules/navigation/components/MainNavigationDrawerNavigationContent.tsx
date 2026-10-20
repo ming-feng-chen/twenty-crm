@@ -1,3 +1,4 @@
+import { NavigationMenuItemCountsRefreshEffect } from '@/navigation-menu-item/display/item-count/components/NavigationMenuItemCountsRefreshEffect';
 import { NavigationMenuItemFolderContentDispatcherEffect } from '@/navigation-menu-item/edit/components/NavigationMenuItemFolderContentDispatcher';
 import { useNavigationMenuItemsByFolder } from '@/navigation-menu-item/display/folder/hooks/useNavigationMenuItemsByFolder';
 import { MainNavigationDrawerScrollableItems } from '@/navigation/components/MainNavigationDrawerScrollableItems';
@@ -16,6 +17,7 @@ export const MainNavigationDrawerNavigationContent = () => {
 
   return (
     <>
+      <NavigationMenuItemCountsRefreshEffect />
       {openedNavigationMenuItemFolder ? (
         <NavigationMenuItemFolderContentDispatcherEffect
           folderName={openedNavigationMenuItemFolder.folderName}
