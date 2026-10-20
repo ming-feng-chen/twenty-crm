@@ -10,6 +10,7 @@ import { type GenerateDescriptorOptions } from 'src/engine/core-modules/tool-pro
 import { type ToolProviderContext } from 'src/engine/core-modules/tool-provider/interfaces/tool-provider-context.type';
 import { type ToolProvider } from 'src/engine/core-modules/tool-provider/interfaces/tool-provider.interface';
 import { getCrudToolLabels } from 'src/engine/core-modules/tool-provider/utils/get-crud-tool-label.util';
+import { isEffectivelyActiveFlatFieldMetadata } from 'src/engine/core-modules/tool-provider/utils/is-effectively-active-flat-field-metadata.util';
 import { resolveEffectiveFieldDescription } from 'src/engine/core-modules/tool-provider/utils/resolve-effective-field-description.util';
 import { ApplicationTranslationCatalogService } from 'src/engine/metadata-modules/application-translation-catalog/services/application-translation-catalog.service';
 
@@ -474,8 +475,11 @@ export class DatabaseToolProvider implements ToolProvider {
         },
       );
 
+    // Deactivated fields stay writable through the API, so an agent shown one
+    // would fill a field nobody sees anymore
     return (flatObject) =>
       getFlatFieldsFromFlatObjectMetadata(flatObject, flatFieldMetadataMaps)
+        .filter(isEffectivelyActiveFlatFieldMetadata)
         .sort((fieldA, fieldB) => fieldA.name.localeCompare(fieldB.name))
         .map((flatFieldMetadata) => ({
           ...flatFieldMetadata,
