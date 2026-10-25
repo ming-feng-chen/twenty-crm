@@ -11,7 +11,6 @@ import {
   IconFileImport,
   IconFileUpload,
   IconMail,
-  IconSparkles,
   IconTable,
   IconUser,
 } from 'twenty-ui/icon';
@@ -38,16 +37,6 @@ export const useActionRolePermissionFlagConfig = ({
 
   return useMemo(() => {
     const allPermissions: SettingsRolePermissionsSettingPermission[] = [
-      {
-        key: PermissionFlagType.AI,
-        name: t`Ask AI`,
-        description: t`Chat with AI agents and use AI features`,
-        Icon: IconSparkles,
-        isToolPermission: true,
-        isRelevantForAgents: false,
-        isRelevantForApiKeys: true,
-        isRelevantForUsers: true,
-      },
       {
         key: PermissionFlagType.UPLOAD_FILE,
         name: t`Upload Files`,

@@ -51,36 +51,19 @@ const compute = ({
   } as never).role.thread;
 };
 
+// AirPal: AI is switched off for every role, so conversations stay out of reach.
 describe('Conversation role permissions', () => {
-  it('grants AI tool access through canAccessAllTools', () => {
-    expect(compute({ canAccessAllTools: true })).toMatchObject({
-      canReadObjectRecords: true,
-      canUpdateObjectRecords: true,
-    });
-  });
-
-  it('grants AI tool access through its explicit permission flag', () => {
-    expect(compute({ hasAiFlag: true })).toMatchObject({
-      canReadObjectRecords: true,
-      canUpdateObjectRecords: true,
-    });
-  });
-
-  it('does not infer AI access from settings administration', () => {
-    expect(compute({ canUpdateAllSettings: true })).toMatchObject({
+  it.each([
+    { canAccessAllTools: true },
+    { hasAiFlag: true },
+    { canUpdateAllSettings: true },
+    { canAccessAllTools: true, canUpdateAllSettings: true, hasAiFlag: true },
+  ])('denies conversation records to a role with %o', (roleAccess) => {
+    expect(compute(roleAccess)).toMatchObject({
       canReadObjectRecords: false,
       canUpdateObjectRecords: false,
       canDestroyObjectRecords: false,
       canSoftDeleteObjectRecords: false,
-    });
-  });
-
-  it('preserves explicit record operation denials for AI-enabled roles', () => {
-    expect(
-      compute({ canAccessAllTools: true, canUpdateObjectRecords: false }),
-    ).toMatchObject({
-      canReadObjectRecords: true,
-      canUpdateObjectRecords: false,
     });
   });
 });

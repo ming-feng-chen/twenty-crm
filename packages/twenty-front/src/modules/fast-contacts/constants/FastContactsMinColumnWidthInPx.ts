@@ -1,0 +1,1 @@
+export const FAST_CONTACTS_MIN_COLUMN_WIDTH_IN_PX = 60;

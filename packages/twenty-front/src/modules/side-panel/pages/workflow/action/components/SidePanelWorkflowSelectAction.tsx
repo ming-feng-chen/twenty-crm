@@ -1,4 +1,3 @@
-import { aiEvaluationModelsState } from '@/client-config/states/aiEvaluationModelsState';
 import { isWorkspaceCustomApplication } from '@/applications/utils/isWorkspaceCustomApplication';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { logicFunctionsSelector } from '@/logic-functions/states/logicFunctionsSelector';
@@ -8,10 +7,8 @@ import { sortWorkflowActionLogicFunctions } from '@/side-panel/pages/workflow/ac
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useWorkspaceFeatureFlagsMap } from '@/workspace/hooks/useWorkspaceFeatureFlagsMap';
 import { type WorkflowActionType } from '@/workflow/types/Workflow';
-import { JEV_MODEL_ID } from 'twenty-shared/ai';
 import { SidePanelStepListContainer } from '@/workflow/workflow-steps/components/SidePanelWorkflowSelectStepContainer';
 import { SidePanelWorkflowSelectStepTitle } from '@/workflow/workflow-steps/components/SidePanelWorkflowSelectStepTitle';
-import { AI_ACTIONS } from '@/workflow/workflow-steps/workflow-actions/constants/AiActions';
 import { CORE_ACTIONS } from '@/workflow/workflow-steps/workflow-actions/constants/CoreActions';
 import { FLOW_ACTIONS } from '@/workflow/workflow-steps/workflow-actions/constants/FlowActions';
 import { HUMAN_INPUT_ACTIONS } from '@/workflow/workflow-steps/workflow-actions/constants/HumanInputActions';
@@ -33,24 +30,14 @@ export const SidePanelWorkflowSelectAction = ({
 }) => {
   const { t } = useLingui();
 
-  const aiEvaluationModels = useAtomStateValue(aiEvaluationModelsState);
-  const isJevAvailable = aiEvaluationModels.some(
-    (model) => model.modelId === JEV_MODEL_ID && model.isAvailable,
-  );
-
-  const aiActions = AI_ACTIONS.map((action) =>
-    action.type === 'CLASSIFY' && !isJevAvailable
-      ? {
-          ...action,
-          disabled: true,
-          contextualText: t`TypeSafe AI API key missing`,
-        }
-      : action,
-  );
-
   const featureFlagsMap = useWorkspaceFeatureFlagsMap();
 
   const isActionEnabled = ({ type }: { type: WorkflowActionType }) => {
+    // AirPal: the owner removed AI, so the chat message step never shows.
+    if (type === 'SEND_CHAT_MESSAGE') {
+      return false;
+    }
+
     // Hidden from the picker only, so the AI workflow tools can still add it
     if (type === 'WAIT_FOR_EVENT') {
       return featureFlagsMap[FeatureFlagKey.IS_AI_CHAT_INBOX_ENABLED] === true;
@@ -97,14 +84,6 @@ export const SidePanelWorkflowSelectAction = ({
       </SidePanelWorkflowSelectStepTitle>
       <WorkflowActionMenuItems
         actions={RECORD_ACTIONS.filter(isActionEnabled)}
-        onClick={handleActionClick}
-      />
-
-      <SidePanelWorkflowSelectStepTitle>
-        {t`AI`}
-      </SidePanelWorkflowSelectStepTitle>
-      <WorkflowActionMenuItems
-        actions={aiActions.filter(isActionEnabled)}
         onClick={handleActionClick}
       />
 

@@ -19,6 +19,7 @@ import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceCacheProvider } from 'src/engine/workspace-cache/interfaces/workspace-cache-provider.service';
 
 import { buildResolveMorphRelationPermissionFieldIds } from 'src/engine/metadata-modules/role/utils/build-resolve-morph-relation-permission-field-ids.util';
+import { AIRPAL_DISABLED_PERMISSION_FLAGS } from 'src/engine/metadata-modules/permissions/constants/airpal-disabled-permission-flags.constant';
 import { hasRoleWideAccessToPermissionFlag } from 'src/engine/metadata-modules/permissions/utils/has-role-wide-access-to-permission-flag.util';
 import { type RolePermissionFlagEntity } from 'src/engine/metadata-modules/role-permission-flag/role-permission-flag.entity';
 import { WorkspaceCache } from 'src/engine/workspace-cache/decorators/workspace-cache.decorator';
@@ -143,10 +144,11 @@ export class WorkspaceRolesPermissionsCacheService extends WorkspaceCacheProvide
       const isRolePermissionFlagGranted = (
         permissionFlag: PermissionFlagType,
       ): boolean =>
-        hasRoleWideAccessToPermissionFlag({ role, permissionFlag }) ||
-        assignedPermissionFlagUniversalIdentifiers.has(
-          SystemPermissionFlag[permissionFlag],
-        );
+        !AIRPAL_DISABLED_PERMISSION_FLAGS.includes(permissionFlag) &&
+        (hasRoleWideAccessToPermissionFlag({ role, permissionFlag }) ||
+          assignedPermissionFlagUniversalIdentifiers.has(
+            SystemPermissionFlag[permissionFlag],
+          ));
       const roleFieldPermissions = fieldPermissions.byRoleId.get(role.id) ?? [];
 
       const roleRowLevelPermissionPredicates =

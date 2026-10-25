@@ -11,6 +11,9 @@ import { PlaygroundSetupForm } from '@/settings/developers/components/Playground
 import { SettingsApiKeysTable } from '@/settings/developers/components/SettingsApiKeysTable';
 import { SettingsWebhooksTable } from '@/settings/developers/components/SettingsWebhooksTable';
 import { SETTINGS_DEVELOPERS_TABS } from '@/settings/developers/constants/SettingsDevelopersTabs';
+import McpCoverDark from '@/settings/mcp/assets/mcp-cover-dark.png';
+import McpCoverLight from '@/settings/mcp/assets/mcp-cover-light.png';
+import { SettingsMcpSetup } from '@/settings/mcp/components/SettingsMcpSetup';
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { SettingsPath } from 'twenty-shared/types';
@@ -21,6 +24,7 @@ import {
   IconApps,
   IconPlus,
   IconSparkle2,
+  IconSparkles,
   IconWebhook,
 } from 'twenty-ui/icon';
 import { MOBILE_VIEWPORT, themeCssVariables } from 'twenty-ui/theme';
@@ -78,6 +82,11 @@ export const SettingsDevelopers = () => {
       title: t`Apps`,
       Icon: IconApps,
     },
+    {
+      id: SETTINGS_DEVELOPERS_TABS.TABS_IDS.MCP,
+      title: t`MCP`,
+      Icon: IconSparkles,
+    },
   ];
 
   const activeTab: TabKey =
@@ -87,6 +96,8 @@ export const SettingsDevelopers = () => {
     ) as TabKey) ?? SETTINGS_DEVELOPERS_TABS.TABS_IDS.API;
 
   const isAppsTab = activeTab === SETTINGS_DEVELOPERS_TABS.TABS_IDS.APPS;
+  // AirPal: MCP setup moved here from the removed Settings > AI page.
+  const isMcpTab = activeTab === SETTINGS_DEVELOPERS_TABS.TABS_IDS.MCP;
 
   return (
     <SettingsPageLayout
@@ -113,11 +124,23 @@ export const SettingsDevelopers = () => {
       <SettingsPageContainer>
         <Section.Root>
           <SettingsDiscoveryHeroCard
-            lightSrc={isAppsTab ? AppsCoverLight : PlaygroundCoverLight}
-            darkSrc={isAppsTab ? AppsCoverDark : PlaygroundCoverDark}
+            lightSrc={
+              isAppsTab
+                ? AppsCoverLight
+                : isMcpTab
+                  ? McpCoverLight
+                  : PlaygroundCoverLight
+            }
+            darkSrc={
+              isAppsTab
+                ? AppsCoverDark
+                : isMcpTab
+                  ? McpCoverDark
+                  : PlaygroundCoverDark
+            }
             instanceIdPrefix={SETTINGS_DEVELOPERS_HERO_INSTANCE_ID_PREFIX}
             tabs={
-              isAppsTab
+              isAppsTab || isMcpTab
                 ? []
                 : [
                     {
@@ -186,6 +209,8 @@ export const SettingsDevelopers = () => {
         )}
 
         {isAppsTab && <SettingsDevelopersAppsTab />}
+
+        {isMcpTab && <SettingsMcpSetup />}
       </SettingsPageContainer>
     </SettingsPageLayout>
   );

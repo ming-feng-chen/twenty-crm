@@ -1,0 +1,1 @@
+export const FAST_CONTACTS_ROW_HEIGHT_IN_PX = 32;

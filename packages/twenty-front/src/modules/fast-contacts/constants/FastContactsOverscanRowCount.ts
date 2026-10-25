@@ -1,0 +1,1 @@
+export const FAST_CONTACTS_OVERSCAN_ROW_COUNT = 10;

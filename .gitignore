@@ -70,3 +70,7 @@ screenshots/
 /.diag*.mjs
 /.compare*.mjs
 /.narrow*.mjs
+
+# Personal Claude workflow adapters stay local to this checkout.
+/.agents/skills/claude-personal-*/
+/.codex/personal-skills.json

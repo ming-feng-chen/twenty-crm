@@ -4,11 +4,9 @@ import { RecordTable } from '@/object-record/record-table/components/RecordTable
 import { RecordTableComponentInstance } from '@/object-record/record-table/components/RecordTableComponentInstance';
 import { RecordTableContextProvider } from '@/object-record/record-table/components/RecordTableContextProvider';
 import { EntityDeleteContext } from '@/object-record/record-table/contexts/EntityDeleteHookContext';
-import { useRecordTableSelectAllHotkeys } from '@/object-record/record-table/hooks/useRecordTableSelectAllHotkeys';
 import { useActiveRecordTableRow } from '@/object-record/record-table/hooks/useActiveRecordTableRow';
 import { useFocusedRecordTableRow } from '@/object-record/record-table/hooks/useFocusedRecordTableRow';
 import { RecordTableRecordLimitReloadEffect } from '@/object-record/record-table/virtualization/components/RecordTableRecordLimitReloadEffect';
-import { PageFocusId } from '@/types/PageFocusId';
 import { ScrollWrapper } from '@/ui/utilities/scroll/components/ScrollWrapper';
 import { styled } from '@linaria/react';
 
@@ -38,11 +36,6 @@ export const RecordTableWithWrappers = ({
   recordTableId,
   viewBarId,
 }: RecordTableWithWrappersProps) => {
-  useRecordTableSelectAllHotkeys({
-    recordTableId,
-    focusId: PageFocusId.RecordIndex,
-  });
-
   const { activateRecordTableRow } = useActiveRecordTableRow(recordTableId);
   const { unfocusRecordTableRow } = useFocusedRecordTableRow(recordTableId);
   const { openRecordFromIndexView } = useOpenRecordFromIndexView();

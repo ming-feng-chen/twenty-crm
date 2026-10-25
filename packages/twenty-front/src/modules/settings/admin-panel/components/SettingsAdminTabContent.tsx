@@ -1,4 +1,3 @@
-import { SettingsAdminAI } from '@/settings/admin-panel/ai/components/SettingsAdminAI';
 import { SettingsAdminApps } from '@/settings/admin-panel/apps/components/SettingsAdminApps';
 import { SettingsAdminGeneral } from '@/settings/admin-panel/components/SettingsAdminGeneral';
 import { SettingsAdminConfigVariables } from '@/settings/admin-panel/config-variables/components/SettingsAdminConfigVariables';
@@ -22,8 +21,6 @@ export const SettingsAdminTabContent = ({
       return <SettingsAdminGeneral />;
     case SETTINGS_ADMIN_TABS.APPS:
       return <SettingsAdminApps />;
-    case SETTINGS_ADMIN_TABS.AI:
-      return <SettingsAdminAI />;
     case SETTINGS_ADMIN_TABS.CONFIG_VARIABLES:
       return <SettingsAdminConfigVariables />;
     case SETTINGS_ADMIN_TABS.HEALTH_STATUS:

@@ -7,19 +7,8 @@ import {
   SettingsRouteOutlet,
 } from '@/app/components/SettingsRoutes';
 import { type WorkspaceRouteObject } from '@/app/routing/types/WorkspaceRouteObject';
+import { FAST_CONTACTS_PAGE_PATH } from '@/fast-contacts/constants/FastContactsPagePath';
 import { RecordIndexSkeletonLoader } from '@/object-record/record-index/components/RecordIndexSkeletonLoader';
-
-const AgentCoreIndexPage = lazy(() =>
-  import('~/pages/object-core/AgentCoreIndexPage').then((module) => ({
-    default: module.AgentCoreIndexPage,
-  })),
-);
-
-const AgentCoreShowPage = lazy(() =>
-  import('~/pages/object-core/AgentCoreShowPage').then((module) => ({
-    default: module.AgentCoreShowPage,
-  })),
-);
 
 const WorkflowCoreShowPage = lazy(() =>
   import('~/pages/object-core/WorkflowCoreShowPage').then((module) => ({
@@ -45,15 +34,9 @@ const StandalonePageLayoutPage = lazy(() =>
   })),
 );
 
-const AiChatPage = lazy(() =>
-  import('~/pages/ai-chat/AiChatPage').then((module) => ({
-    default: module.AiChatPage,
-  })),
-);
-
-const AiChatInboxPage = lazy(() =>
-  import('~/pages/ai-chat/AiChatInboxPage').then((module) => ({
-    default: module.AiChatInboxPage,
+const FastContactsPage = lazy(() =>
+  import('~/pages/fast-contacts/FastContactsPage').then((module) => ({
+    default: module.FastContactsPage,
   })),
 );
 
@@ -97,22 +80,6 @@ export const createWorkspaceRouteObjects = ({
       },
     },
     {
-      path: AppPath.AgentIndexPage,
-      element: (
-        <LazyRoute fallback={<RecordIndexSkeletonLoader />}>
-          <AgentCoreIndexPage />
-        </LazyRoute>
-      ),
-    },
-    {
-      path: AppPath.AgentShowPage,
-      element: (
-        <LazyRoute>
-          <AgentCoreShowPage />
-        </LazyRoute>
-      ),
-    },
-    {
       path: AppPath.Index,
       element: <RecordIndexSkeletonLoader />,
     },
@@ -146,18 +113,10 @@ export const createWorkspaceRouteObjects = ({
       ),
     },
     {
-      path: AppPath.AiChat,
+      path: FAST_CONTACTS_PAGE_PATH,
       element: (
         <LazyRoute>
-          <AiChatPage />
-        </LazyRoute>
-      ),
-    },
-    {
-      path: AppPath.AiChatInbox,
-      element: (
-        <LazyRoute>
-          <AiChatInboxPage />
+          <FastContactsPage />
         </LazyRoute>
       ),
     },

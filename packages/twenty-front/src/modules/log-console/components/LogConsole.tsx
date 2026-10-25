@@ -1,4 +1,3 @@
-import { formatShortcut } from 'twenty-ui/primitives/typography';
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { useReducedMotion } from 'framer-motion';
@@ -19,7 +18,6 @@ import { themeCssVariables, useTheme } from 'twenty-ui/theme';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { isClickHouseConfiguredState } from '@/client-config/states/isClickHouseConfiguredState';
 import { LogConsoleDetailPanel } from '@/log-console/components/LogConsoleDetailPanel';
-import { LogConsoleToggleHotkeyEffect } from '@/log-console/components/LogConsoleToggleHotkeyEffect';
 import { LogConsoleResults } from '@/log-console/components/LogConsoleResults';
 import { LOG_CONSOLE_ANIMATION_EASING } from '@/log-console/constants/LogConsoleAnimationEasing';
 import { LOG_CONSOLE_HEIGHT_CONSTRAINTS } from '@/log-console/constants/LogConsoleHeightConstraints';
@@ -359,16 +357,8 @@ export const LogConsole = () => {
     setIsLogConsoleFullScreen(false);
   };
 
-  const toggleHotkeyLabel = formatShortcut({
-    shortcut: ['Mod', 'J'],
-  });
-
-  const toggleHotkeyEffect = isVisible ? (
-    <LogConsoleToggleHotkeyEffect onToggle={toggleLogConsoleOpen} />
-  ) : null;
-
   if (!isDefined(displayedLayout)) {
-    return toggleHotkeyEffect;
+    return null;
   }
 
   const isBodyRendered =
@@ -588,7 +578,6 @@ export const LogConsole = () => {
 
   return (
     <>
-      {toggleHotkeyEffect}
       <StyledSpacer
         data-animate-entrance={shouldAnimateEntrance}
         isResizing={isResizing}
@@ -628,7 +617,7 @@ export const LogConsole = () => {
                 <IconButton
                   size="sm"
                   variant="outline"
-                  tooltip={`${openOrCollapseLabel} | ${toggleHotkeyLabel}`}
+                  tooltip={openOrCollapseLabel}
                   aria-label={openOrCollapseLabel}
                   onClick={toggleLogConsoleOpen}
                 >

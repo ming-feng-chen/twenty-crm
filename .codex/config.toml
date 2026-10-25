@@ -1,0 +1,23 @@
+[mcp_servers.context7]
+command = "npx"
+args = [
+    "-y",
+    "@upstash/context7-mcp",
+]
+
+[mcp_servers.playwright]
+command = "npx"
+args = [
+    "-y",
+    "@playwright/mcp@latest",
+    "--no-sandbox",
+    "--headless",
+]
+
+[mcp_servers.postgres]
+command = "C:/Program Files/Git/bin/bash.exe"
+cwd = "C:/Users/ming_/Desktop/Workk/AirPal CRM/"
+args = [
+    "-c",
+    'source packages/twenty-server/.env && npx -y @modelcontextprotocol/server-postgres "$PG_DATABASE_URL"',
+]

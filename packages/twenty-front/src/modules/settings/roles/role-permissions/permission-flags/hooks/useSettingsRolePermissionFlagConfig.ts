@@ -12,7 +12,6 @@ import {
   IconSettings,
   IconSettingsAutomation,
   IconShield,
-  IconSparkles,
   IconSpy,
   IconUsers,
 } from 'twenty-ui/icon';
@@ -145,15 +144,6 @@ export const useSettingsRolePermissionFlagConfig = ({
         Icon: IconCreditCard,
         isRelevantForAgents: false,
         isRelevantForApiKeys: false,
-        isRelevantForUsers: true,
-      },
-      {
-        key: PermissionFlagType.AI_SETTINGS,
-        name: t`AI`,
-        description: t`Create and configure AI agents`,
-        Icon: IconSparkles,
-        isRelevantForAgents: true,
-        isRelevantForApiKeys: true,
         isRelevantForUsers: true,
       },
     ];

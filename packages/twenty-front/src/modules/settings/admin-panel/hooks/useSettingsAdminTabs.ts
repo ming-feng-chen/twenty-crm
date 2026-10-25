@@ -8,7 +8,6 @@ import {
   IconHeart,
   IconKey,
   IconSettings2,
-  IconSparkles,
   IconVariable,
 } from 'twenty-ui/icon';
 
@@ -31,12 +30,6 @@ export const useSettingsAdminTabs = () => {
       id: SETTINGS_ADMIN_TABS.APPS,
       title: t`Apps`,
       Icon: IconApps,
-      disabled: !canAccessFullAdminPanel,
-    },
-    {
-      id: SETTINGS_ADMIN_TABS.AI,
-      title: t`AI`,
-      Icon: IconSparkles,
       disabled: !canAccessFullAdminPanel,
     },
     {

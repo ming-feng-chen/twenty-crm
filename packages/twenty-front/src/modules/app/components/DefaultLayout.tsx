@@ -4,7 +4,6 @@ import { AppPageErrorFallback } from '@/error-handler/components/AppPageErrorFal
 import { DefaultLayoutNavigationDrawer } from '@/app/components/DefaultLayoutNavigationDrawer';
 import { FileUploadProvider } from '@/file-upload/components/FileUploadProvider';
 import { InformationBannerIsImpersonating } from '@/information-banner/components/impersonate/InformationBannerIsImpersonating';
-import { KeyboardShortcutMenu } from '@/keyboard-shortcut-menu/components/KeyboardShortcutMenu';
 import { LayoutCustomizationBar } from '@/layout-customization/components/LayoutCustomizationBar';
 import { MobileNavigationBar } from '@/navigation/components/MobileNavigationBar';
 import { PageDragDropProvider } from '@/navigation-menu-item/display/dnd/providers/PageDragDropProvider';
@@ -74,7 +73,6 @@ export const DefaultLayout = () => {
             <LayoutCustomizationBar />
             <StyledPageContainer>
               <PageDragDropProvider>
-                <KeyboardShortcutMenu />
                 <DefaultLayoutNavigationDrawer />
                 <StyledMainContainer>
                   <AppErrorBoundary FallbackComponent={AppPageErrorFallback}>

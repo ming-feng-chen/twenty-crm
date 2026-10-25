@@ -1,11 +1,9 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 
-import { AgentChatProvider } from '@/ai/components/AgentChatProvider';
 import { TrackPageViewEffect } from '@/analytics/components/TrackPageViewEffect';
 import { SharedAppProviders } from '@/app/components/SharedAppProviders';
 import { WorkspaceAppPageTitle } from '@/app/components/WorkspaceAppPageTitle';
-import { GotoHotkeysEffectsProvider } from '@/app/effect-components/GotoHotkeysEffectsProvider';
 import { InitializeQueryParamStateEffect } from '@/app/effect-components/InitializeQueryParamStateEffect';
 import { PageChangeEffect } from '@/app/effect-components/PageChangeEffect';
 import { ApplicationsLoadEffect } from '@/applications/components/ApplicationsLoadEffect';
@@ -65,7 +63,7 @@ export const WorkspaceAppProviders = () => {
                   >
                     <AppToaster />
                     <ErrorMessageEffect />
-                    <AgentChatProvider>
+                    <Suspense fallback={null}>
                       <DialogComponentInstanceContext.Provider
                         value={{ instanceId: 'dialog-manager' }}
                       >
@@ -73,7 +71,6 @@ export const WorkspaceAppProviders = () => {
                           <StrictMode>
                             <PromiseRejectionEffect />
                             <EndTrialAfterPaymentMethodGater />
-                            <GotoHotkeysEffectsProvider />
                             <WorkspaceAppPageTitle />
                             <PageFavicon />
                             <CoreRecordReferenceFieldsContext.Provider
@@ -89,7 +86,7 @@ export const WorkspaceAppProviders = () => {
                           </StrictMode>
                         </DialogManager>
                       </DialogComponentInstanceContext.Provider>
-                    </AgentChatProvider>
+                    </Suspense>
                   </ContextStoreComponentInstanceContext.Provider>
                   <SupportChatEffect />
                   <InitializeQueryParamStateEffect />

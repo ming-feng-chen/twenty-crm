@@ -5,7 +5,6 @@ import { useObjectPermissionsForObject } from '@/object-record/hooks/useObjectPe
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { RecordBoard } from '@/object-record/record-board/components/RecordBoard';
 import { RecordBoardBodyEscapeHotkeyEffect } from '@/object-record/record-board/components/RecordBoardBodyEscapeHotkeyEffect';
-import { RecordBoardHotkeyEffect } from '@/object-record/record-board/components/RecordBoardHotkeyEffect';
 import { RecordBoardContext } from '@/object-record/record-board/contexts/RecordBoardContext';
 import { RecordBoardComponentInstanceContext } from '@/object-record/record-board/states/contexts/RecordBoardComponentInstanceContext';
 import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
@@ -74,7 +73,6 @@ export const RecordBoardContainer = ({
       >
         <RecordBoard />
         <RecordIndexRemoveSortingModal />
-        <RecordBoardHotkeyEffect />
         <RecordBoardBodyEscapeHotkeyEffect />
       </RecordBoardComponentInstanceContext.Provider>
     </RecordBoardContext.Provider>

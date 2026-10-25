@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/ming_/Desktop/Workk/AirPal CRM/scripts/codex/session-start.mjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/ming_/Desktop/Workk/AirPal CRM/scripts/codex/notify.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/ming_/Desktop/Workk/AirPal CRM/scripts/codex/notify.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

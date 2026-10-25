@@ -2,7 +2,6 @@ import { RecordTableDeactivateRecordTableRowEffect } from '@/object-record/recor
 import { RecordTableEmptyHasNewRecordEffect } from '@/object-record/record-table/components/RecordTableEmptyHasNewRecordEffect';
 import { RecordSelectionEscapeHotkeyEffect } from '@/object-record/record-selection/components/RecordSelectionEscapeHotkeyEffect';
 import { RecordTableBodyFocusClickOutsideEffect } from '@/object-record/record-table/record-table-body/components/RecordTableBodyFocusClickOutsideEffect';
-import { RecordTableBodyFocusKeyboardEffect } from '@/object-record/record-table/record-table-body/components/RecordTableBodyFocusKeyboardEffect';
 import { RecordTableRecordGroupBodyEffects } from '@/object-record/record-table/record-table-body/components/RecordTableRecordGroupBodyEffects';
 import { RecordTableNoRecordGroupScrollToPreviousRecordEffect } from '@/object-record/record-table/virtualization/components/RecordTableNoRecordGroupScrollToPreviousRecordEffect';
 import { RecordTableVirtualizedFieldMetadataUpdateEffect } from '@/object-record/record-table/virtualization/components/RecordTableVirtualizedFieldMetadataUpdateEffect';
@@ -30,7 +29,6 @@ export const RecordTableBodyEffectsWrapper = ({
         </>
       )}
       <RecordSelectionEscapeHotkeyEffect />
-      <RecordTableBodyFocusKeyboardEffect />
       <RecordTableBodyFocusClickOutsideEffect tableBodyRef={tableBodyRef} />
       <RecordTableDeactivateRecordTableRowEffect />
     </>

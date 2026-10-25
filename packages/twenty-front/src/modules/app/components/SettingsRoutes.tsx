@@ -14,7 +14,6 @@ import {
   type WorkspaceRouteHandle,
   type WorkspaceRouteObject,
 } from '@/app/routing/types/WorkspaceRouteObject';
-import { SETTINGS_AI_TABS } from '@/settings/ai/constants/SettingsAiTabs';
 import { SettingsProtectedRouteWrapper } from '@/settings/components/SettingsProtectedRouteWrapper';
 import { SettingsSkeletonLoader } from '@/settings/components/SettingsSkeletonLoader';
 import { SettingPublicDomain } from '@/settings/domains/components/SettingPublicDomain';
@@ -85,15 +84,6 @@ const getLegacySettingsPathRedirectPathname = (
 function LegacySettingsPathRedirect({ to }: LegacySettingsPathRedirectProps) {
   const location = useLocation();
   const params = useParams();
-
-  if (to === SettingsPath.Developers && location.hash === '#mcp') {
-    return (
-      <Navigate
-        to={`${getSettingsPath(SettingsPath.AI)}${location.search}#${SETTINGS_AI_TABS.TABS_IDS.MCP}`}
-        replace
-      />
-    );
-  }
 
   const pathname = getLegacySettingsPathRedirectPathname(to, params);
 
@@ -264,24 +254,6 @@ const SettingsDevelopers = lazy(() =>
   })),
 );
 
-const SettingsAI = lazy(() =>
-  import('~/pages/settings/ai/SettingsAI').then((module) => ({
-    default: module.SettingsAI,
-  })),
-);
-
-const SettingsAiUsageUserDetail = lazy(() =>
-  import('~/pages/settings/ai/SettingsAiUsageUserDetail').then((module) => ({
-    default: module.SettingsAiUsageUserDetail,
-  })),
-);
-
-const SettingsToolDetail = lazy(() =>
-  import('~/pages/settings/ai/SettingsToolDetail').then((module) => ({
-    default: module.SettingsToolDetail,
-  })),
-);
-
 const SettingsApplications = lazy(() =>
   import('~/pages/settings/applications/SettingsApplications').then(
     (module) => ({
@@ -372,18 +344,6 @@ const SettingsApplicationRegistrationDetails = lazy(() =>
       default: module.SettingsApplicationRegistrationDetails,
     }),
   ),
-);
-
-const SettingsSkillForm = lazy(() =>
-  import('~/pages/settings/ai/SettingsSkillForm').then((module) => ({
-    default: module.SettingsSkillForm,
-  })),
-);
-
-const SettingsAiPrompts = lazy(() =>
-  import('~/pages/settings/ai/SettingsAiPrompts').then((module) => ({
-    default: module.SettingsAiPrompts,
-  })),
 );
 
 const SettingsWorkspaceMembers = lazy(() =>
@@ -654,30 +614,6 @@ const SettingsAdminConfigVariableDetails = lazy(() =>
   ),
 );
 
-const SettingsAdminNewAiProvider = lazy(() =>
-  import('~/pages/settings/admin-panel/SettingsAdminNewAiProvider').then(
-    (module) => ({
-      default: module.SettingsAdminNewAiProvider,
-    }),
-  ),
-);
-
-const SettingsAdminAiProviderDetail = lazy(() =>
-  import('~/pages/settings/admin-panel/SettingsAdminAiProviderDetail').then(
-    (module) => ({
-      default: module.SettingsAdminAiProviderDetail,
-    }),
-  ),
-);
-
-const SettingsAdminNewAiModel = lazy(() =>
-  import('~/pages/settings/admin-panel/SettingsAdminNewAiModel').then(
-    (module) => ({
-      default: module.SettingsAdminNewAiModel,
-    }),
-  ),
-);
-
 const SettingsAdminUserDetail = lazy(() =>
   import('~/pages/settings/admin-panel/SettingsAdminUserDetail').then(
     (module) => ({
@@ -887,36 +823,6 @@ const createSettingsRouteElements = ({
       <Route
         path={SettingsPath.LegalDpaNew}
         element={<SettingsLegalDpaNew />}
-      />
-    </Route>
-    <Route
-      element={
-        <SettingsProtectedRouteWrapper
-          settingsPermission={PermissionFlagType.AI_SETTINGS}
-        />
-      }
-    >
-      <Route path={SettingsPath.AI} element={<SettingsAI />} />
-      <Route path={SettingsPath.AiPrompts} element={<SettingsAiPrompts />} />
-      <Route
-        path={SettingsPath.AiNewSkill}
-        element={<SettingsSkillForm mode="create" />}
-      />
-      <Route
-        path={SettingsPath.AiSkillDetail}
-        element={<SettingsSkillForm mode="edit" />}
-      />
-      <Route
-        path={SettingsPath.AiUsageUserDetail}
-        element={<SettingsAiUsageUserDetail />}
-      />
-      <Route
-        path={SettingsPath.AiToolDetail}
-        element={<SettingsToolDetail />}
-      />
-      <Route
-        path={SettingsPath.LogicFunctionDetail}
-        element={<SettingsLogicFunctionDetail />}
       />
     </Route>
     <Route
@@ -1216,18 +1122,6 @@ const createSettingsRouteElements = ({
         <Route
           path={SettingsPath.AdminPanelConfigVariableDetails}
           element={<SettingsAdminConfigVariableDetails />}
-        />
-        <Route
-          path={SettingsPath.AdminPanelNewAiProvider}
-          element={<SettingsAdminNewAiProvider />}
-        />
-        <Route
-          path={SettingsPath.AdminPanelNewAiModel}
-          element={<SettingsAdminNewAiModel />}
-        />
-        <Route
-          path={SettingsPath.AdminPanelAiProviderDetail}
-          element={<SettingsAdminAiProviderDetail />}
         />
         <Route
           path={SettingsPath.AdminPanelUserDetail}
