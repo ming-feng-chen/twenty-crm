@@ -9,9 +9,10 @@ import { createAppClient } from 'src/data/api';
 import { recomputeEveryone } from 'src/data/recompute';
 import { reconcileRules, seedDefaultCadence } from 'src/data/rules';
 import { loadSharedContext } from 'src/data/store';
+import { seedDefaultTags } from 'src/data/tags';
 
-// Install and every upgrade: seed the default cadence if there is none
-// (idempotent), apply the stored rules if they are not applied yet, and
+// Install and every upgrade: seed the default cadence and the starting tags
+// if there are none (idempotent), apply the stored rules if they are not applied yet, and
 // recompute everyone, since a new app version may compute differently.
 const handler = async (payload: InstallPayload) => {
   const client = createAppClient();
@@ -24,9 +25,11 @@ const handler = async (payload: InstallPayload) => {
           reason: `App installed (${payload?.previousVersion ?? 'new'} → ${payload?.newVersion ?? 'unknown'})`,
         })
       : seed.apply;
+  const tags = await seedDefaultTags();
   const stats = await recomputeEveryone(client, await loadSharedContext(client));
   const result = {
     seed: seed.status,
+    tags,
     rules: rules.status,
     contactsRecomputed: stats.contactsRecomputed,
     contactsWritten: stats.contactsWritten,
@@ -42,7 +45,7 @@ export default definePostInstallLogicFunction({
   universalIdentifier: POST_INSTALL_LOGIC_FUNCTION_UNIVERSAL_IDENTIFIER,
   name: 'post-install',
   description:
-    'Seeds the default cadence if none exists, applies the stored rules and recomputes every contact.',
+    'Seeds the default cadence and starting tags if none exist, applies the stored rules and recomputes every contact.',
   timeoutSeconds: 900,
   handler: withErrorLogging('post-install', handler),
 });

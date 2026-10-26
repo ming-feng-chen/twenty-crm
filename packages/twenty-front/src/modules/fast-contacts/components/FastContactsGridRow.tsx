@@ -4,6 +4,7 @@ import { memo, type ReactNode, type RefObject } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { LightIconButton } from 'twenty-ui/components/input';
 import { IconArrowUpRight } from 'twenty-ui/icon';
+import { Tag } from 'twenty-ui/primitives/data-display';
 import { Checkbox } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -12,6 +13,7 @@ import { type FastContactsCellFormatContext } from '@/fast-contacts/types/FastCo
 import { type FastContactsColumn } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
 import { getFastContactsCellText } from '@/fast-contacts/utils/getFastContactsCellText';
+import { getFastContactsTagColor } from '@/fast-contacts/utils/getFastContactsTagColor';
 
 const StyledRow = styled.div`
   display: grid;
@@ -79,6 +81,17 @@ const StyledCellText = styled.span`
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+`;
+
+const StyledTags = styled.span`
+  display: flex;
+  flex: 1;
+  gap: ${themeCssVariables.spacing[1]};
+  overflow: hidden;
+
+  & > * {
+    flex-shrink: 0;
+  }
 `;
 
 const StyledOpenButton = styled.span`
@@ -168,7 +181,18 @@ export const FastContactsGridRow = memo(
               data-editing={isEditing}
               style={isDefined(frozenLeft) ? { left: frozenLeft } : undefined}
             >
-              {column.kind === 'boolean' ? (
+              {column.kind === 'tags' ? (
+                <StyledTags>
+                  {person.tags.map((tag) => (
+                    <Tag
+                      key={tag.id}
+                      color={getFastContactsTagColor(tag.color)}
+                    >
+                      {tag.name}
+                    </Tag>
+                  ))}
+                </StyledTags>
+              ) : column.kind === 'boolean' ? (
                 <Checkbox
                   size="sm"
                   checked={person[column.key] === true}

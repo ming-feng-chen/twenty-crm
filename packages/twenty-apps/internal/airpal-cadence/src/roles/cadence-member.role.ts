@@ -7,6 +7,7 @@ import {
   CADENCE_STEP_OBJECT_UNIVERSAL_IDENTIFIER,
   SUPPRESSION_OBJECT_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
+import { TAG_OBJECT_UNIVERSAL_IDENTIFIER } from 'src/constants/tags-identifiers';
 
 const READ_ONLY = {
   canReadObjectRecords: true,
@@ -15,17 +16,15 @@ const READ_ONLY = {
   canDestroyObjectRecords: false,
 };
 
-// SPEC §7: members work people and touches; the rules, their audit trail and
-// the suppression list are read-only. Twenty grants create and update as one
-// permission, so members cannot create suppression entries directly either:
-// the app creates them with its own role when a member opts someone out
-// because they asked us to stop. No field-level read-only permissions: the
-// engine-written person fields are protected by isUIEditable instead.
+// SPEC §7. Twenty grants create and update as one permission, so suppression
+// entries and tags stay read-only here and the app creates them with its own
+// role (opt-out, create-tag route); only Admins rename or delete tags.
+// Engine-written person fields are protected by isUIEditable, not field permissions.
 export default defineRole({
   universalIdentifier: CADENCE_MEMBER_ROLE_UNIVERSAL_IDENTIFIER,
   label: 'Cadence Member',
   description:
-    'Works the daily cadence: people and touches. Cadence rules, their history and the suppression list are read-only.',
+    'Works the daily cadence: people, touches and contact tags. Cadence rules, their history, the suppression list and tag names are read-only.',
   icon: 'IconUserCheck',
   canReadAllObjectRecords: true,
   canUpdateAllObjectRecords: true,
@@ -41,6 +40,7 @@ export default defineRole({
     CADENCE_STEP_OBJECT_UNIVERSAL_IDENTIFIER,
     CADENCE_CHANGE_OBJECT_UNIVERSAL_IDENTIFIER,
     SUPPRESSION_OBJECT_UNIVERSAL_IDENTIFIER,
+    TAG_OBJECT_UNIVERSAL_IDENTIFIER,
   ].map((objectUniversalIdentifier) => ({
     objectUniversalIdentifier,
     ...READ_ONLY,

@@ -36,6 +36,7 @@ const normalizeFilter = (
     case 'select':
     case 'owner':
     case 'company':
+    case 'tags':
       return filter.type === 'values' &&
         Array.isArray(filter.values) &&
         filter.values.every((value) => value === null || isString(value))

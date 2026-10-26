@@ -12,6 +12,7 @@ import { FAST_CONTACTS_SEARCH_INPUT_FOCUS_ID } from '@/fast-contacts/constants/F
 import { type FastContactsCellValue } from '@/fast-contacts/types/FastContactsCellValue';
 import { type FastContactsColumnKey } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
+import { type FastContactsTag } from '@/fast-contacts/types/FastContactsPerson';
 import { type FastContactsSheetLayout } from '@/fast-contacts/types/FastContactsSheetLayout';
 import { usePushFocusItemToFocusStack } from '@/ui/utilities/focus/hooks/usePushFocusItemToFocusStack';
 import { useRemoveFocusItemFromFocusStackById } from '@/ui/utilities/focus/hooks/useRemoveFocusItemFromFocusStackById';
@@ -70,6 +71,7 @@ type FastContactsToolbarProps = {
     columnKey: FastContactsColumnKey,
     value: FastContactsCellValue,
   ) => void;
+  onBulkTagChange: (mode: 'add' | 'remove', tag: FastContactsTag) => void;
 };
 
 export const FastContactsToolbar = ({
@@ -91,6 +93,7 @@ export const FastContactsToolbar = ({
   onResetLayout,
   onExport,
   onBulkChange,
+  onBulkTagChange,
 }: FastContactsToolbarProps) => {
   const { t } = useLingui();
   const { pushFocusItemToFocusStack } = usePushFocusItemToFocusStack();
@@ -168,6 +171,7 @@ export const FastContactsToolbar = ({
             editContext={editContext}
             editableColumnKeys={editableColumnKeys}
             onApply={onBulkChange}
+            onApplyTag={onBulkTagChange}
           />
         </>
       )}

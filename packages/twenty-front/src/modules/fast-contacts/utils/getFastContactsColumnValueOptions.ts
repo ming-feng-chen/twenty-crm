@@ -41,6 +41,14 @@ export const getFastContactsColumnValueOptions = ({
           label: company.name ?? '',
         })),
       ];
+    case 'tags':
+      return [
+        ...blankOptions,
+        ...editContext.tags.map((tag) => ({
+          key: tag.id,
+          label: tag.name ?? '',
+        })),
+      ];
     default:
       return [];
   }

@@ -5,11 +5,14 @@ import { useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
 
+import { FAST_CONTACTS_CREATE_TAG_ROUTE_PATH } from '@/fast-contacts/constants/FastContactsCreateTagRoutePath';
 import { FAST_CONTACTS_HANDOVER_DIALOG_ID } from '@/fast-contacts/constants/FastContactsHandoverDialogId';
 import { FAST_CONTACTS_OWNER_CHANGE_ROUTE_PATH } from '@/fast-contacts/constants/FastContactsOwnerChangeRoutePath';
 import { FAST_CONTACTS_SAVE_CONCURRENCY } from '@/fast-contacts/constants/FastContactsSaveConcurrency';
 import { CREATE_FAST_CONTACTS_COMPANY_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsCompanyMutation';
 import { CREATE_FAST_CONTACTS_PERSON_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsPersonMutation';
+import { CREATE_FAST_CONTACTS_PERSON_TAGS_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsPersonTagsMutation';
+import { DELETE_FAST_CONTACTS_PERSON_TAGS_MUTATION } from '@/fast-contacts/graphql/mutations/DeleteFastContactsPersonTagsMutation';
 import { UPDATE_FAST_CONTACTS_PERSON_MUTATION } from '@/fast-contacts/graphql/mutations/UpdateFastContactsPersonMutation';
 import { type FastContactsCellValue } from '@/fast-contacts/types/FastContactsCellValue';
 import {
@@ -22,10 +25,14 @@ import {
   type FastContactsCompany,
   type FastContactsOwner,
   type FastContactsPerson,
+  type FastContactsTag,
 } from '@/fast-contacts/types/FastContactsPerson';
+import { type FastContactsPersonNode } from '@/fast-contacts/types/FastContactsPersonNode';
+import { toFastContactsPerson } from '@/fast-contacts/utils/toFastContactsPerson';
 import { applyFastContactsCellValue } from '@/fast-contacts/utils/applyFastContactsCellValue';
 import { buildFastContactsPersonUpdateInput } from '@/fast-contacts/utils/buildFastContactsPersonUpdateInput';
 import { changeFastContactsOwnerThroughCadence } from '@/fast-contacts/utils/changeFastContactsOwnerThroughCadence';
+import { createFastContactsTagThroughCadence } from '@/fast-contacts/utils/createFastContactsTagThroughCadence';
 import { fetchFastContactsPeople } from '@/fast-contacts/utils/fetchFastContactsPeople';
 import { formatFastContactsSkippedCells } from '@/fast-contacts/utils/formatFastContactsSkippedCells';
 import { getFastContactsCellValueKey } from '@/fast-contacts/utils/getFastContactsCellValueKey';
@@ -152,13 +159,16 @@ export const useFastContactsWriter = ({
   ): Promise<SaveOutcome> => {
     applyValuesLocally(changes, (change) => change.value);
 
-    const ownerChanges = changes.filter(
-      (change) => change.columnKey === 'cadenceOwner',
+    // Owners go through the Cadence app and tags through personTag records,
+    // so neither is part of the person update.
+    const separateChanges = changes.filter(
+      (change) =>
+        change.columnKey === 'cadenceOwner' || change.columnKey === 'tags',
     );
     const changesByPersonId = new Map<string, FastContactsCellChange[]>();
 
     for (const change of changes) {
-      if (change.columnKey !== 'cadenceOwner') {
+      if (!separateChanges.includes(change)) {
         changesByPersonId.set(change.personId, [
           ...(changesByPersonId.get(change.personId) ?? []),
           change,
@@ -170,7 +180,7 @@ export const useFastContactsWriter = ({
       ([personId, personChanges]) =>
         async () => {
           const { data } = await apolloCoreClient.mutate<{
-            updatePerson: FastContactsPerson;
+            updatePerson: FastContactsPersonNode;
           }>({
             mutation: UPDATE_FAST_CONTACTS_PERSON_MUTATION,
             variables: {
@@ -188,30 +198,76 @@ export const useFastContactsWriter = ({
             fetchPolicy: 'no-cache',
           });
 
-          return data?.updatePerson ?? null;
+          return isDefined(data?.updatePerson)
+            ? toFastContactsPerson(data.updatePerson)
+            : null;
         },
     );
 
-    const routeUrl = getLogicFunctionHttpUrl(
+    const ownerChangeRouteUrl = getLogicFunctionHttpUrl(
       FAST_CONTACTS_OWNER_CHANGE_ROUTE_PATH,
     );
-    const ownerTasks = ownerChanges.map(
-      (change) => () =>
-        changeFastContactsOwnerThroughCadence({
-          routeUrl,
-          personId: change.personId,
-          ownerId: (change.value as FastContactsOwner | null)?.id ?? null,
-          mode: ownerChangeMode,
-        }),
+    const saveTagChange = async (change: FastContactsCellChange) => {
+      const previousTagIds = (change.previousValue as FastContactsTag[]).map(
+        (tag) => tag.id,
+      );
+      const nextTagIds = (change.value as FastContactsTag[]).map(
+        (tag) => tag.id,
+      );
+      const addedTagIds = nextTagIds.filter(
+        (tagId) => !previousTagIds.includes(tagId),
+      );
+      const removedTagIds = previousTagIds.filter(
+        (tagId) => !nextTagIds.includes(tagId),
+      );
+
+      if (addedTagIds.length > 0) {
+        await apolloCoreClient.mutate({
+          mutation: CREATE_FAST_CONTACTS_PERSON_TAGS_MUTATION,
+          variables: {
+            data: addedTagIds.map((tagId) => ({
+              personId: change.personId,
+              tagId,
+            })),
+          },
+          fetchPolicy: 'no-cache',
+        });
+      }
+
+      if (removedTagIds.length > 0) {
+        await apolloCoreClient.mutate({
+          mutation: DELETE_FAST_CONTACTS_PERSON_TAGS_MUTATION,
+          variables: {
+            filter: {
+              and: [
+                { personId: { eq: change.personId } },
+                { tagId: { in: removedTagIds } },
+              ],
+            },
+          },
+          fetchPolicy: 'no-cache',
+        });
+      }
+    };
+    const separateTasks = separateChanges.map((change) =>
+      change.columnKey === 'tags'
+        ? () => saveTagChange(change)
+        : () =>
+            changeFastContactsOwnerThroughCadence({
+              routeUrl: ownerChangeRouteUrl,
+              personId: change.personId,
+              ownerId: (change.value as FastContactsOwner | null)?.id ?? null,
+              mode: ownerChangeMode,
+            }),
     );
 
-    const [updateResults, ownerResults] = await Promise.all([
+    const [updateResults, separateResults] = await Promise.all([
       runFastContactsTasksWithConcurrency(
         updateTasks,
         FAST_CONTACTS_SAVE_CONCURRENCY,
       ),
       runFastContactsTasksWithConcurrency(
-        ownerTasks,
+        separateTasks,
         FAST_CONTACTS_SAVE_CONCURRENCY,
       ),
     ]);
@@ -244,8 +300,8 @@ export const useFastContactsWriter = ({
       );
     });
 
-    ownerChanges.forEach((change, index) => {
-      const result = ownerResults[index];
+    separateChanges.forEach((change, index) => {
+      const result = separateResults[index];
 
       if (result.status === 'fulfilled') {
         savedChanges.push(change);
@@ -272,10 +328,11 @@ export const useFastContactsWriter = ({
         isSameValue(change, person[change.columnKey], change.value),
     );
 
-    // The handover also moves cadence fields (owner since, step, next action date).
+    // A handover also moves cadence fields (owner since, step, next action
+    // date), and tags come back in the server's order.
     await refreshPeopleFromServer([
       ...new Set(
-        ownerChanges
+        separateChanges
           .filter((change) => savedChanges.includes(change))
           .map((change) => change.personId),
       ),
@@ -445,7 +502,7 @@ export const useFastContactsWriter = ({
   }): Promise<FastContactsPerson | null> => {
     try {
       const { data } = await apolloCoreClient.mutate<{
-        createPerson: FastContactsPerson;
+        createPerson: FastContactsPersonNode;
       }>({
         mutation: CREATE_FAST_CONTACTS_PERSON_MUTATION,
         variables: {
@@ -453,7 +510,9 @@ export const useFastContactsWriter = ({
         },
         fetchPolicy: 'no-cache',
       });
-      const createdPerson = data?.createPerson ?? null;
+      const createdPerson = isDefined(data?.createPerson)
+        ? toFastContactsPerson(data.createPerson)
+        : null;
 
       if (isDefined(createdPerson)) {
         upsertPeopleLocally([createdPerson]);
@@ -495,8 +554,26 @@ export const useFastContactsWriter = ({
     }
   };
 
+  const createTag = async (name: string): Promise<FastContactsTag | null> => {
+    try {
+      return await createFastContactsTagThroughCadence({
+        routeUrl: getLogicFunctionHttpUrl(FAST_CONTACTS_CREATE_TAG_ROUTE_PATH),
+        name,
+      });
+    } catch (error) {
+      enqueueToast({
+        status: 'error',
+        children: t`The tag could not be created`,
+        description: getErrorMessage(error),
+      });
+
+      return null;
+    }
+  };
+
   return {
     writeCells,
+    createTag,
     undoLastStep,
     createPerson,
     createCompany,

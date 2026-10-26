@@ -22,6 +22,14 @@ export const matchesFastContactsColumnFilter = ({
 }): boolean => {
   switch (filter.type) {
     case 'values':
+      if (columnKey === 'tags') {
+        return filter.values.some((value) =>
+          value === null
+            ? person.tags.length === 0
+            : person.tags.some((tag) => tag.id === value),
+        );
+      }
+
       return filter.values.includes(
         getFastContactsCellFilterKey(person, columnKey),
       );

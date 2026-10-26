@@ -43,5 +43,35 @@ export const createAppClient = () =>
 export const createActorClient = () =>
   new CoreApiClient({ fetch: pacedFetch });
 
+// For objects added in the same deploy as the code that uses them (tags): the
+// typed client only learns them after that deploy, so this call is untyped.
+export const appGraphql = async <TData>(
+  query: string,
+  variables: Record<string, unknown> = {},
+): Promise<TData> => {
+  const response = await pacedFetch(`${process.env.TWENTY_API_URL}/graphql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.TWENTY_APP_APPLICATION_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const body = (await response.json()) as {
+    data?: TData;
+    errors?: { message: string }[];
+  };
+
+  if (body.errors !== undefined && body.errors.length > 0) {
+    throw new Error(body.errors.map((error) => error.message).join('; '));
+  }
+
+  if (body.data === undefined) {
+    throw new Error(`GraphQL request failed (${response.status})`);
+  }
+
+  return body.data;
+};
+
 export const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);

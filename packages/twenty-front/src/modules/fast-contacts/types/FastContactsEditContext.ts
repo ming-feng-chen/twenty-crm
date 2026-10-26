@@ -3,6 +3,7 @@ import { type FastContactsColumnKey } from '@/fast-contacts/types/FastContactsCo
 import {
   type FastContactsCompany,
   type FastContactsOwner,
+  type FastContactsTag,
 } from '@/fast-contacts/types/FastContactsPerson';
 
 export type FastContactsMember = FastContactsOwner & {
@@ -12,6 +13,7 @@ export type FastContactsMember = FastContactsOwner & {
 export type FastContactsEditContext = {
   formatContext: FastContactsCellFormatContext;
   companies: FastContactsCompany[];
+  tags: FastContactsTag[];
   members: FastContactsMember[];
   requiredColumnKeys: FastContactsColumnKey[];
 };

@@ -16,6 +16,12 @@ export type FastContactsOwner = {
   name: FieldFullNameValue | null;
 };
 
+export type FastContactsTag = {
+  id: string;
+  name: string | null;
+  color: string | null;
+};
+
 export type FastContactsPerson = {
   id: string;
   position: number | null;
@@ -40,4 +46,5 @@ export type FastContactsPerson = {
   linkedinConnectionNote: string | null;
   company: FastContactsCompany | null;
   cadenceOwner: FastContactsOwner | null;
+  tags: FastContactsTag[];
 };

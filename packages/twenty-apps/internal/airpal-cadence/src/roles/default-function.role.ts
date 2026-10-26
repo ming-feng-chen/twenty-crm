@@ -12,6 +12,7 @@ import {
   SUPPRESSION_OBJECT_UNIVERSAL_IDENTIFIER,
   TOUCH_OBJECT_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
+import { TAG_OBJECT_UNIVERSAL_IDENTIFIER } from 'src/constants/tags-identifiers';
 
 const READ_WRITE = {
   canReadObjectRecords: true,
@@ -34,7 +35,7 @@ export default defineApplicationRole({
   universalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
   label: `${APP_DISPLAY_NAME} function role`,
   description:
-    'Reads the workspace; writes cadence fields on people, touches, cadence rules, their audit trail and the suppression list.',
+    'Reads the workspace; writes cadence fields on people, touches, cadence rules, their audit trail, the suppression list and tags.',
   canReadAllObjectRecords: true,
   canUpdateAllObjectRecords: false,
   canSoftDeleteAllObjectRecords: false,
@@ -76,6 +77,10 @@ export default defineApplicationRole({
     },
     {
       objectUniversalIdentifier: SUPPRESSION_OBJECT_UNIVERSAL_IDENTIFIER,
+      ...READ_WRITE,
+    },
+    {
+      objectUniversalIdentifier: TAG_OBJECT_UNIVERSAL_IDENTIFIER,
       ...READ_WRITE,
     },
   ],

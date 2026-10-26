@@ -3,6 +3,7 @@ import { type MessageDescriptor } from '@lingui/core';
 export type FastContactsColumnKey =
   | 'name'
   | 'company'
+  | 'tags'
   | 'jobTitle'
   | 'cadenceOwner'
   | 'cadenceStage'
@@ -25,6 +26,7 @@ export type FastContactsColumnKind =
   | 'fullName'
   | 'company'
   | 'owner'
+  | 'tags'
   | 'text'
   | 'select'
   | 'date'

@@ -44,7 +44,8 @@ export const FastContactsColumnFilterPage = ({
   switch (column.kind) {
     case 'select':
     case 'owner':
-    case 'company': {
+    case 'company':
+    case 'tags': {
       const options = getFastContactsColumnValueOptions({
         column,
         editContext,

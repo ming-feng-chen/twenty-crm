@@ -39,7 +39,7 @@ describe('normalizeFastContactsSheetLayout', () => {
       'emails',
       'company',
     ]);
-    expect(layout.columnOrder).toHaveLength(19);
+    expect(layout.columnOrder).toHaveLength(20);
     expect(layout.hiddenColumnKeys).toContain('company');
     expect(layout.hiddenColumnKeys).toContain('city');
     expect(layout.hiddenColumnKeys).not.toContain('name');
@@ -55,7 +55,7 @@ describe('normalizeFastContactsSheetLayout', () => {
     expect(
       normalizeFastContactsSheetLayout({ frozenColumnCount: 99 })
         .frozenColumnCount,
-    ).toBe(11);
+    ).toBe(12);
   });
 
   it('should keep valid sorts and filters and drop invalid ones', () => {

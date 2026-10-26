@@ -4,12 +4,16 @@ import { type RefObject } from 'react';
 import { FastContactsDateCellEditor } from '@/fast-contacts/components/cell-editors/FastContactsDateCellEditor';
 import { FastContactsNameCellEditor } from '@/fast-contacts/components/cell-editors/FastContactsNameCellEditor';
 import { FastContactsPickerCellEditor } from '@/fast-contacts/components/cell-editors/FastContactsPickerCellEditor';
+import { FastContactsTagsCellEditor } from '@/fast-contacts/components/cell-editors/FastContactsTagsCellEditor';
 import { FastContactsTextCellEditor } from '@/fast-contacts/components/cell-editors/FastContactsTextCellEditor';
 import { type FastContactsCellValue } from '@/fast-contacts/types/FastContactsCellValue';
 import { type FastContactsColumn } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
 import { type FastContactsEditorMove } from '@/fast-contacts/types/FastContactsEditorMove';
-import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+import {
+  type FastContactsPerson,
+  type FastContactsTag,
+} from '@/fast-contacts/types/FastContactsPerson';
 import { type FastContactsPickerOption } from '@/fast-contacts/types/FastContactsPickerOption';
 import { formatFastContactsPhones } from '@/fast-contacts/utils/formatFastContactsPhones';
 import { getFastContactsColumnValueOptions } from '@/fast-contacts/utils/getFastContactsColumnValueOptions';
@@ -28,6 +32,7 @@ type FastContactsCellEditorProps = {
     move: FastContactsEditorMove,
   ) => void;
   onCreateCompany: (name: string) => void;
+  onCreateTag: (name: string) => Promise<FastContactsTag | null>;
   onCancel: () => void;
 };
 
@@ -61,6 +66,7 @@ export const FastContactsCellEditor = ({
   onCommitText,
   onCommitValue,
   onCreateCompany,
+  onCreateTag,
   onCancel,
 }: FastContactsCellEditorProps) => {
   const { t, i18n } = useLingui();
@@ -125,6 +131,17 @@ export const FastContactsCellEditor = ({
         (key) => key,
       );
     }
+    case 'tags':
+      return (
+        <FastContactsTagsCellEditor
+          anchorRef={cellRef}
+          allTags={editContext.tags}
+          initialTags={person.tags}
+          initialSearch={initialText ?? ''}
+          onCreateTag={onCreateTag}
+          onCommit={(tags) => onCommitValue(tags, 'none')}
+        />
+      );
     case 'owner':
     case 'company': {
       const options = getFastContactsColumnValueOptions({

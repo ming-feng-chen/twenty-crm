@@ -28,7 +28,10 @@ import {
 import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
 import { type FastContactsEditingCell } from '@/fast-contacts/types/FastContactsEditingCell';
 import { type FastContactsEditorMove } from '@/fast-contacts/types/FastContactsEditorMove';
-import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+import {
+  type FastContactsPerson,
+  type FastContactsTag,
+} from '@/fast-contacts/types/FastContactsPerson';
 import { type FastContactsSelection } from '@/fast-contacts/types/FastContactsSelection';
 import { type FastContactsSheetLayout } from '@/fast-contacts/types/FastContactsSheetLayout';
 import {
@@ -128,6 +131,7 @@ type FastContactsGridProps = {
   onUndo: () => void;
   onOpenPerson: (personId: string) => void;
   onCreateCompanyForPerson: (personId: string, companyName: string) => void;
+  onCreateTag: (name: string) => Promise<FastContactsTag | null>;
   onDraftCommit: (name: FieldFullNameValue) => void;
   onDraftCancel: () => void;
   onSortClick: (columnKey: FastContactsColumnKey) => void;
@@ -167,6 +171,7 @@ export const FastContactsGrid = ({
   onUndo,
   onOpenPerson,
   onCreateCompanyForPerson,
+  onCreateTag,
   onDraftCommit,
   onDraftCancel,
   onSortClick,
@@ -750,6 +755,7 @@ export const FastContactsGrid = ({
           onCreateCompanyForPerson(person.id, companyName);
           finishEditing('none');
         }}
+        onCreateTag={onCreateTag}
         onCancel={handleCancelEditing}
       />
     );

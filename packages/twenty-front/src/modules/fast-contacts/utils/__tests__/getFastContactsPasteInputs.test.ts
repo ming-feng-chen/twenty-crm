@@ -39,7 +39,7 @@ describe('getFastContactsPasteInputs', () => {
         focus: cell(1, 2),
         selectedRowIds: null,
       }).cells,
-    ).toEqual(['a:company=x', 'a:jobTitle=x', 'b:company=x', 'b:jobTitle=x']);
+    ).toEqual(['a:company=x', 'a:tags=x', 'b:company=x', 'b:tags=x']);
   });
 
   it('should paste a block down and right and count what does not fit', () => {
@@ -52,7 +52,7 @@ describe('getFastContactsPasteInputs', () => {
         { anchor: cell(2, 1), focus: cell(2, 1), selectedRowIds: null },
       ),
     ).toEqual({
-      cells: ['c:company=1', 'c:jobTitle=2'],
+      cells: ['c:company=1', 'c:tags=2'],
       outsideCellCount: 4,
     });
   });

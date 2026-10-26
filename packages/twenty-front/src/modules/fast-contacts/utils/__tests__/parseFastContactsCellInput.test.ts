@@ -145,4 +145,16 @@ describe('parseFastContactsCellInput', () => {
     expect(parse('company', 'Twin').isValid).toBe(false);
     expect(parse('company', '')).toEqual({ isValid: true, value: null });
   });
+
+  it('should match pasted tag names and never create a tag', () => {
+    expect(parse('tags', 'leadership; Digital tech, Leadership')).toEqual({
+      isValid: true,
+      value: [
+        { id: 'tag-1', name: 'Leadership', color: 'RED' },
+        { id: 'tag-2', name: 'Digital tech', color: 'ORANGE' },
+      ],
+    });
+    expect(parse('tags', 'Leadership, Sales').isValid).toBe(false);
+    expect(parse('tags', '')).toEqual({ isValid: true, value: [] });
+  });
 });

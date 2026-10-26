@@ -462,6 +462,15 @@ Returns `{ changed, isHandover, mode, warnings, person }`; `warnings` names
 an owed reply and, on KEEP_POSITION, a LinkedIn step. Editing the owner field
 directly is always START_FRESH.
 
+### Create tag: `POST /s/cadence/create-tag`
+
+`{ name }` creates a contact tag with the next palette colour, or returns the
+live tag with the same name (ignoring case and spacing). Returns
+`{ tag: { id, name, color }, created }`. It runs with the app's role because
+members may not create or rename tags themselves; tagging a contact is a
+normal `personTag` create or delete. `post-install` and the hourly cron seed
+the five starting tags when the workspace has never had a tag.
+
 ### Resume cadence: `POST /s/cadence/resume`
 
 `{ personId }` sets `cadenceResumedAt` to today, only when the engine offers

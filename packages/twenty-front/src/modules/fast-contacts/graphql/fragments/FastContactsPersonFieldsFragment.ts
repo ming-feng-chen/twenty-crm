@@ -50,5 +50,16 @@ export const FAST_CONTACTS_PERSON_FIELDS_FRAGMENT = gql`
         lastName
       }
     }
+    tags {
+      edges {
+        node {
+          tag {
+            id
+            name
+            color
+          }
+        }
+      }
+    }
   }
 `;

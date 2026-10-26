@@ -36,6 +36,8 @@ export const getFastContactsCellText = ({
       return person.company?.name ?? '';
     case 'owner':
       return formatFastContactsFullName(person.cadenceOwner?.name);
+    case 'tags':
+      return person.tags.map((tag) => tag.name ?? '').join(', ');
     case 'text':
       return (person[columnKey] as string | null) ?? '';
     case 'select': {

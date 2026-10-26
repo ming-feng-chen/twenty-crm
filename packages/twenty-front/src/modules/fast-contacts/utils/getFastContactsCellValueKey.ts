@@ -20,12 +20,18 @@ const sortKeysDeep = (value: unknown): unknown => {
   return value === '' ? null : value;
 };
 
-// Compares stored values the way the server sees them: relations by id, and
+// Compares stored values the way the server sees them: relations and tags by id, and
 // an empty string or list the same as null.
 export const getFastContactsCellValueKey = (
   columnKey: FastContactsColumnKey,
   value: FastContactsCellValue,
 ): string => {
+  if (columnKey === 'tags') {
+    return JSON.stringify(
+      ((value ?? []) as { id: string }[]).map((tag) => tag.id).sort(),
+    );
+  }
+
   if (columnKey === 'company' || columnKey === 'cadenceOwner') {
     return JSON.stringify(
       isDefined(value) ? (value as { id: string }).id : null,

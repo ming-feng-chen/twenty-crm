@@ -24,6 +24,7 @@ import { FAST_CONTACTS_TABS } from '@/fast-contacts/constants/FastContactsTabs';
 import { useFastContactsCellFormatContext } from '@/fast-contacts/hooks/useFastContactsCellFormatContext';
 import { useFastContactsCompanies } from '@/fast-contacts/hooks/useFastContactsCompanies';
 import { useFastContactsPeople } from '@/fast-contacts/hooks/useFastContactsPeople';
+import { useFastContactsTags } from '@/fast-contacts/hooks/useFastContactsTags';
 import { useFastContactsWriter } from '@/fast-contacts/hooks/useFastContactsWriter';
 import { fastContactsActiveTabState } from '@/fast-contacts/states/fastContactsActiveTabState';
 import { fastContactsColumnWidthsState } from '@/fast-contacts/states/fastContactsColumnWidthsState';
@@ -40,6 +41,7 @@ import {
 } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
 import { type FastContactsEditingCell } from '@/fast-contacts/types/FastContactsEditingCell';
+import { type FastContactsTag } from '@/fast-contacts/types/FastContactsPerson';
 import { type FastContactsSelection } from '@/fast-contacts/types/FastContactsSelection';
 import {
   type FastContactsSheetLayout,
@@ -62,7 +64,9 @@ import {
   type FastContactsCellInput,
   planFastContactsCellInputs,
 } from '@/fast-contacts/utils/planFastContactsCellInputs';
+import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { getFieldPermissions } from '@/object-metadata/utils/getFieldPermissions';
+import { useObjectPermissions } from '@/object-record/hooks/useObjectPermissions';
 import { useObjectPermissionsForObject } from '@/object-record/hooks/useObjectPermissionsForObject';
 import { type FieldFullNameValue } from '@/object-record/record-field/ui/types/FieldMetadata';
 import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
@@ -128,6 +132,9 @@ export const FastContactsPageContent = () => {
     upsertPeopleLocally,
   } = useFastContactsPeople();
   const { companies, addCompanyLocally } = useFastContactsCompanies();
+  const { tags, addTagLocally } = useFastContactsTags();
+  const { objectMetadataItems } = useObjectMetadataItems();
+  const { objectPermissionsByObjectMetadataId } = useObjectPermissions();
   const currentWorkspaceMembers = useAtomStateValue(
     currentWorkspaceMembersState,
   );
@@ -143,6 +150,7 @@ export const FastContactsPageContent = () => {
     () => ({
       formatContext,
       companies,
+      tags,
       members: currentWorkspaceMembers.map((member) => ({
         id: member.id,
         name: member.name ?? null,
@@ -159,6 +167,7 @@ export const FastContactsPageContent = () => {
     [
       formatContext,
       companies,
+      tags,
       currentWorkspaceMembers,
       personObjectMetadataItem,
     ],
@@ -173,6 +182,17 @@ export const FastContactsPageContent = () => {
       ),
     [personObjectMetadataItem],
   );
+
+  // Tagging creates and deletes personTag records, so it needs both on that object.
+  const personTagObjectMetadataItemId = objectMetadataItems.find(
+    (objectMetadataItem) => objectMetadataItem.nameSingular === 'personTag',
+  )?.id;
+  const personTagPermissions = isDefined(personTagObjectMetadataItemId)
+    ? objectPermissionsByObjectMetadataId[personTagObjectMetadataItemId]
+    : undefined;
+  const canEditTags =
+    personTagPermissions?.canUpdateObjectRecords === true &&
+    personTagPermissions.canSoftDeleteObjectRecords === true;
 
   const editableColumnKeys = useMemo(
     () =>
@@ -190,11 +210,12 @@ export const FastContactsPageContent = () => {
             getFieldPermissions({
               objectPermissions,
               fieldMetadataId: field.id,
-            }).canUpdateField
+            }).canUpdateField &&
+            (column.kind !== 'tags' || canEditTags)
           );
         }).map((column) => column.key),
       ),
-    [personObjectMetadataItem, objectPermissions],
+    [personObjectMetadataItem, objectPermissions, canEditTags],
   );
 
   const formatPersonName = useCallback(
@@ -624,6 +645,43 @@ export const FastContactsPageContent = () => {
       false,
     );
 
+  const handleBulkTagChange = (mode: 'add' | 'remove', tag: FastContactsTag) =>
+    writeCells(
+      selectedRowIds.flatMap((personId) => {
+        const currentTags = peopleById.get(personId)?.tags ?? [];
+        const hasTag = currentTags.some(
+          (currentTag) => currentTag.id === tag.id,
+        );
+
+        if (mode === 'add' ? hasTag : !hasTag) {
+          return [];
+        }
+
+        return [
+          {
+            personId,
+            columnKey: 'tags' as const,
+            value:
+              mode === 'add'
+                ? [...currentTags, tag]
+                : currentTags.filter((currentTag) => currentTag.id !== tag.id),
+          },
+        ];
+      }),
+      [],
+      false,
+    );
+
+  const handleCreateTag = async (name: string) => {
+    const tag = await writer.createTag(name);
+
+    if (isDefined(tag)) {
+      addTagLocally(tag);
+    }
+
+    return tag;
+  };
+
   const handleExport = () => {
     const selectedRowIdSet = new Set(selectedRowIds);
     const exportedRows =
@@ -765,6 +823,7 @@ export const FastContactsPageContent = () => {
         onResetLayout={() => updateLayout(getDefaultFastContactsSheetLayout)}
         onExport={handleExport}
         onBulkChange={handleBulkChange}
+        onBulkTagChange={handleBulkTagChange}
       />
       <FastContactsGrid
         key={activeTab.key}
@@ -792,6 +851,7 @@ export const FastContactsPageContent = () => {
         onCreateCompanyForPerson={(personId, companyName) =>
           void handleCreateCompanyForPerson(personId, companyName)
         }
+        onCreateTag={handleCreateTag}
         onDraftCommit={(name) => void handleDraftCommit(name)}
         onDraftCancel={handleDraftCancel}
         onSortClick={handleSortClick}

@@ -6,7 +6,10 @@ import { absoluteUrlSchema, emailSchema } from 'twenty-shared/utils';
 import { type FastContactsCellValueResult } from '@/fast-contacts/types/FastContactsCellValue';
 import { type FastContactsColumnKey } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
-import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+import {
+  type FastContactsPerson,
+  type FastContactsTag,
+} from '@/fast-contacts/types/FastContactsPerson';
 import { formatFastContactsFullName } from '@/fast-contacts/utils/formatFastContactsFullName';
 import { getFastContactsColumn } from '@/fast-contacts/utils/getFastContactsColumn';
 import { normalizeFastContactsSearchText } from '@/fast-contacts/utils/normalizeFastContactsSearchText';
@@ -210,6 +213,31 @@ export const parseFastContactsCellInput = ({
       return matches.length === 1
         ? valid(matches[0])
         : invalid(t`No company is called "${trimmedText}"`);
+    }
+    case 'tags': {
+      const names = trimmedText
+        .split(/[,;\n]/)
+        .map((name) => name.trim())
+        .filter((name) => name !== '');
+      const tags: FastContactsTag[] = [];
+
+      for (const name of names) {
+        const tag = editContext.tags.find(
+          (candidate) =>
+            isNonEmptyString(candidate.name) &&
+            normalize(candidate.name) === normalize(name),
+        );
+
+        if (tag === undefined) {
+          return invalid(t`No tag is called "${name}"`);
+        }
+
+        if (!tags.includes(tag)) {
+          tags.push(tag);
+        }
+      }
+
+      return valid(tags);
     }
     case 'dateTime':
       return invalid(t`This column is read-only`);

@@ -41,6 +41,7 @@ export const FAST_CONTACTS_TEST_PERSON: FastContactsPerson = {
     id: 'member-1',
     name: { firstName: 'Romy', lastName: 'Levy' },
   },
+  tags: [{ id: 'tag-1', name: 'Leadership', color: 'RED' }],
 };
 
 export const FAST_CONTACTS_TEST_FORMAT_CONTEXT: FastContactsCellFormatContext =
@@ -74,6 +75,10 @@ export const FAST_CONTACTS_TEST_EDIT_CONTEXT: FastContactsEditContext = {
     { id: 'company-2', name: 'Heathrow', group: 'AIRPORT' },
     { id: 'company-3', name: 'Twin', group: null },
     { id: 'company-4', name: 'twin', group: null },
+  ],
+  tags: [
+    { id: 'tag-1', name: 'Leadership', color: 'RED' },
+    { id: 'tag-2', name: 'Digital tech', color: 'ORANGE' },
   ],
   members: [
     {

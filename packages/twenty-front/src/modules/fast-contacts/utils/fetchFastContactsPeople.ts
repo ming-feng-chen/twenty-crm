@@ -5,10 +5,12 @@ import { isDefined } from 'twenty-shared/utils';
 
 import { FIND_FAST_CONTACTS_PEOPLE_QUERY } from '@/fast-contacts/graphql/queries/FindFastContactsPeopleQuery';
 import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+import { type FastContactsPersonNode } from '@/fast-contacts/types/FastContactsPersonNode';
+import { toFastContactsPerson } from '@/fast-contacts/utils/toFastContactsPerson';
 
 type FindFastContactsPeopleResult = {
   people: {
-    edges: { node: FastContactsPerson }[];
+    edges: { node: FastContactsPersonNode }[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 };
@@ -35,7 +37,9 @@ export const fetchFastContactsPeople = async ({
       throw new Error(doNotTranslate('No data returned for people'));
     }
 
-    people.push(...data.people.edges.map((edge) => edge.node));
+    people.push(
+      ...data.people.edges.map((edge) => toFastContactsPerson(edge.node)),
+    );
 
     after = data.people.pageInfo.hasNextPage
       ? data.people.pageInfo.endCursor

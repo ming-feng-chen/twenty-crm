@@ -3,11 +3,15 @@ import { defineLogicFunction } from 'twenty-sdk/define';
 import { DAILY_RECOMPUTE_LOGIC_FUNCTION_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { withErrorLogging } from 'src/data/log-errors';
 import { runDailyRecompute } from 'src/data/daily-recompute';
+import { seedDefaultTags } from 'src/data/tags';
 
 const handler = async (payload: { force?: unknown } | null | undefined) => {
+  // Updating an installed app does not run post-install, so the starting tags
+  // arrive with the first hourly run after the deploy that adds them.
+  const tags = await seedDefaultTags();
   const result = await runDailyRecompute({ force: payload?.force === true });
 
-  console.log(JSON.stringify({ trigger: 'cron', ...result }));
+  console.log(JSON.stringify({ trigger: 'cron', tags, ...result }));
 
   return result;
 };

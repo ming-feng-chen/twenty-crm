@@ -21,6 +21,14 @@ export const FAST_CONTACTS_COLUMNS: FastContactsColumn[] = [
     isVisibleByDefault: true,
   },
   {
+    key: 'tags',
+    kind: 'tags',
+    label: msg`Tags`,
+    defaultWidth: 220,
+    isEditable: true,
+    isVisibleByDefault: true,
+  },
+  {
     key: 'jobTitle',
     kind: 'text',
     label: msg`Job title`,

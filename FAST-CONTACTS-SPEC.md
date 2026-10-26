@@ -21,6 +21,7 @@ Each sheet keeps its own search, filters and sort.
 |---|---|---|
 | Name | `name` (first, last) | First and Last boxes; typed or pasted text splits at the first space |
 | Company | `company` | searchable dropdown of companies, plus "Create company" when nothing matches |
+| Tags | `tags` (personTag records) | tick list of tags, plus "Create tag" when nothing matches; see §8 |
 | Job title | `jobTitle` | text |
 | Owner | `cadenceOwner` | searchable dropdown of workspace members; handover rules in §5 |
 | Stage | `cadenceStage` | dropdown, pipeline order |
@@ -39,7 +40,7 @@ Each sheet keeps its own search, filters and sort.
 | Opt-out reason | `optOutReason` | dropdown |
 | Created on | `createdAt` | read-only |
 
-Read-only cells look muted; typing in them does nothing. The first 11 are shown by default, the rest are hidden until added from Columns.
+Read-only cells look muted; typing in them does nothing. The first 12 are shown by default, the rest are hidden until added from Columns.
 
 ## 3. Layout, sort and filter
 
@@ -49,7 +50,7 @@ Read-only cells look muted; typing in them does nothing. The first 11 are shown 
 - Toolbar "Columns" button: tick boxes to show or hide every column, and "Reset layout".
 - Sort: clicking a header cycles A to Z, Z to A, off. One column at a time. Blanks last in both directions. Stage and other dropdowns sort by option order. Off = the default order (position, then id).
 - Filters combine across columns (AND) and with search:
-  - dropdown, Owner and Company columns: tick-box list of values including "(Blank)";
+  - dropdown, Owner, Company and Tags columns: tick-box list of values including "(Blank)"; on Tags a row matches when it has any ticked tag, and "(Blank)" means no tags;
   - text columns: contains;
   - date columns: before, after, between, is empty;
   - checkbox columns: Yes or No.
@@ -63,8 +64,8 @@ Read-only cells look muted; typing in them does nothing. The first 11 are shown 
 - Delete or Backspace clears the selected cells, except Name.
 - Invalid values (bad email, unreadable date) are not saved; the cell flashes and a message says why.
 - Range selection: drag, Shift+click, Shift+arrows. Ctrl+C copies the range as tab-separated text, without headers.
-- Paste: a block fills down and right from the active cell; a single value pasted onto a selected range fills every cell. Dropdown, Owner and Company values must match an existing option, member or company name (case-insensitive). Paste never creates companies or contacts. Rows beyond the end are ignored. Read-only columns are skipped. Good cells save, bad ones are skipped and listed.
-- Row numbers on the far left: click selects a row, Shift+click a range, Ctrl+click adds, the corner selects every shown row. With rows selected the toolbar shows "N selected" and "Change…" for Owner, Stage, Health, Company, Next action date, Snooze until, Revisit on, Opted out, Opt-out reason. Text columns are bulk-changed by pasting.
+- Paste: a block fills down and right from the active cell; a single value pasted onto a selected range fills every cell. Dropdown, Owner, Company and Tags values must match an existing option, member, company or tag name (case-insensitive); several tags are separated by commas or semicolons, and copying a Tags cell gives the same form. Paste never creates companies, tags or contacts. Rows beyond the end are ignored. Read-only columns are skipped. Good cells save, bad ones are skipped and listed.
+- Row numbers on the far left: click selects a row, Shift+click a range, Ctrl+click adds, the corner selects every shown row. With rows selected the toolbar shows "N selected" and "Change…" for Owner, Stage, Health, Company, Next action date, Snooze until, Revisit on, Opted out, Opt-out reason, plus "Add tag" and "Remove tag" (other tags on each contact are kept). Text columns are bulk-changed by pasting.
 - No delete-contact action in the grid.
 - Ctrl+Z undoes the viewer's own changes from this page visit, one step at a time; a paste or bulk change is one step. It skips any cell a teammate changed since, and says so. Undoing a handover restores the owner but not a reply that Start fresh cleared (accepted).
 - No confirmation dialogs except the handover choice in §5.
@@ -87,6 +88,15 @@ Changing an owner from one member to another is a handover (cadence SPEC §4). T
 
 "Export" downloads a CSV of the selected rows, or every shown row when none are selected (after sheet, search and filters), with the visible columns in their current order. Dates as YYYY-MM-DD, UTF-8 with BOM so Excel keeps accents. File name: `AirPal contacts - <Sheet> - <YYYY-MM-DD>.csv`. Everyone can export.
 
-## 8. Rollout
+## 8. Tags
 
-Not yet deployed (2026-10-26). Built and tested locally, then tried on staging before production. Once the team uses Contacts, the owner adds a "Contacts" link to the sidebar and removes Partner contacts, Airport contacts and Cold from it; see `AIRPAL-BACKLOG.md`.
+Decided 2026-10-26. Tags group people by role and live in the Cadence app (`packages/twenty-apps/internal/airpal-cadence`).
+
+- `tag` object (name, colour) and a `personTag` junction, so a person can have many tags. Shown on the person record page, in native People views and in export.
+- Starting tags: Partnership & innovation, Marketing & customer, Digital tech, Commercial & retail, Leadership. Seeded once, by post-install on a fresh install or by the hourly cron after an update; never re-seeded after that.
+- Everyone can create a tag from the grid ("Create tag"). It goes through `POST /s/cadence/create-tag`, which runs with the app's role, so members never need Data model permission. A name matching an existing tag (ignoring case and spaces) reuses it. Colours are assigned automatically in turn.
+- Only Admins rename or delete tags, from "All Tags". Cadence Member has the tag object read-only; tagging people (personTag) is allowed for anyone who can edit people.
+
+## 9. Rollout
+
+Not yet deployed (2026-10-26). Built and tested locally, then tried on staging before production. Deploy the Cadence app before the front: the grid asks for `tags`, which exists only once the app is applied. Once the team uses Contacts, the owner adds a "Contacts" link to the sidebar and removes Partner contacts, Airport contacts and Cold from it; see `AIRPAL-BACKLOG.md`.
