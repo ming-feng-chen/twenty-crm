@@ -2,9 +2,10 @@ import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { styled } from '@linaria/react';
 import { saveAs } from 'file-saver';
+import { useStore } from 'jotai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppPath, CoreObjectNameSingular } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { getAppPath, isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -15,14 +16,17 @@ import {
   type FastContactsColumnMenuAnchor,
   FastContactsColumnMenu,
 } from '@/fast-contacts/components/FastContactsColumnMenu';
+import { FastContactsDeleteDialog } from '@/fast-contacts/components/FastContactsDeleteDialog';
 import { FastContactsGrid } from '@/fast-contacts/components/FastContactsGrid';
 import { FastContactsHandoverDialog } from '@/fast-contacts/components/FastContactsHandoverDialog';
 import { FastContactsTabBar } from '@/fast-contacts/components/FastContactsTabBar';
 import { FastContactsToolbar } from '@/fast-contacts/components/FastContactsToolbar';
 import { FAST_CONTACTS_COLUMNS } from '@/fast-contacts/constants/FastContactsColumns';
+import { FAST_CONTACTS_DELETE_DIALOG_ID } from '@/fast-contacts/constants/FastContactsDeleteDialogId';
 import { FAST_CONTACTS_TABS } from '@/fast-contacts/constants/FastContactsTabs';
 import { useFastContactsCellFormatContext } from '@/fast-contacts/hooks/useFastContactsCellFormatContext';
 import { useFastContactsCompanies } from '@/fast-contacts/hooks/useFastContactsCompanies';
+import { useFastContactsDeletedPeople } from '@/fast-contacts/hooks/useFastContactsDeletedPeople';
 import { useFastContactsPeople } from '@/fast-contacts/hooks/useFastContactsPeople';
 import { useFastContactsTags } from '@/fast-contacts/hooks/useFastContactsTags';
 import { useFastContactsWriter } from '@/fast-contacts/hooks/useFastContactsWriter';
@@ -69,9 +73,14 @@ import { getFieldPermissions } from '@/object-metadata/utils/getFieldPermissions
 import { useObjectPermissions } from '@/object-record/hooks/useObjectPermissions';
 import { useObjectPermissionsForObject } from '@/object-record/hooks/useObjectPermissionsForObject';
 import { type FieldFullNameValue } from '@/object-record/record-field/ui/types/FieldMetadata';
+import { useOpenObjectRecordsSpreadsheetImportDialog } from '@/object-record/spreadsheet-import/hooks/useOpenObjectRecordsSpreadsheetImportDialog';
+import { useOpenMergeRecordsPageInSidePanel } from '@/side-panel/hooks/useOpenMergeRecordsPageInSidePanel';
+import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
+import { isSidePanelOpenedState } from '@/side-panel/states/isSidePanelOpenedState';
+import { sidePanelNavigationStackState } from '@/side-panel/states/sidePanelNavigationStackState';
+import { useDialog } from '@/ui/layout/dialog/hooks/useDialog';
 import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
-import { useNavigateApp } from '~/hooks/useNavigateApp';
 
 const StyledContainer = styled.div`
   display: flex;
@@ -93,7 +102,13 @@ const EMPTY_SEARCH_TEXT_BY_TAB_KEY: Record<FastContactsTabKey, string> = {
   partner: '',
   airport: '',
   cold: '',
+  deleted: '',
 };
+
+const PERSON_RECORD_PATH_PREFIX = getAppPath(AppPath.RecordShowPage, {
+  objectNameSingular: CoreObjectNameSingular.Person,
+  objectRecordId: '',
+});
 
 const INITIAL_SELECTION: FastContactsSelection = {
   anchor: { rowIndex: 0, columnIndex: 0 },
@@ -116,7 +131,9 @@ type RowOrder = {
 
 export const FastContactsPageContent = () => {
   const { t, i18n } = useLingui();
-  const navigateApp = useNavigateApp();
+  const store = useStore();
+  const { openDialog } = useDialog();
+  const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { enqueueToast } = useToast();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const gridViewportRef = useRef<HTMLDivElement>(null);
@@ -130,7 +147,10 @@ export const FastContactsPageContent = () => {
     personObjectMetadataItem,
     reloadPeople,
     upsertPeopleLocally,
+    removePeopleLocally,
   } = useFastContactsPeople();
+  const { deletedPeople, deletedPeopleById, reloadDeletedPeople } =
+    useFastContactsDeletedPeople();
   const { companies, addCompanyLocally } = useFastContactsCompanies();
   const { tags, addTagLocally } = useFastContactsTags();
   const { objectMetadataItems } = useObjectMetadataItems();
@@ -220,16 +240,30 @@ export const FastContactsPageContent = () => {
 
   const formatPersonName = useCallback(
     (personId: string) =>
-      formatFastContactsFullName(peopleById.get(personId)?.name) ||
-      t`Unnamed contact`,
-    [peopleById, t],
+      formatFastContactsFullName(
+        (peopleById.get(personId) ?? deletedPeopleById.get(personId))?.name,
+      ) || t`Unnamed contact`,
+    [peopleById, deletedPeopleById, t],
   );
 
   const writer = useFastContactsWriter({
     peopleByIdAtom,
     upsertPeopleLocally,
+    removePeopleLocally,
+    onDeletedPeopleChange: () => void reloadDeletedPeople(),
     formatPersonName,
   });
+
+  const { openObjectRecordsSpreadsheetImportDialog } =
+    useOpenObjectRecordsSpreadsheetImportDialog(
+      CoreObjectNameSingular.Person,
+      () => void reloadPeople(),
+    );
+
+  // Merging keeps one contact and deletes the others, so it needs both rights.
+  const canMergeContacts =
+    objectPermissions.canUpdateObjectRecords &&
+    objectPermissions.canSoftDeleteObjectRecords;
 
   const [fastContactsActiveTab, setFastContactsActiveTab] = useAtomState(
     fastContactsActiveTabState,
@@ -258,6 +292,14 @@ export const FastContactsPageContent = () => {
   const activeTab =
     FAST_CONTACTS_TABS.find((tab) => tab.key === fastContactsActiveTab) ??
     FAST_CONTACTS_TABS[0];
+  // Deleted contacts are shown read-only; restoring is the only change allowed.
+  const isDeletedSheet = activeTab.isDeletedSheet === true;
+  const sheetPeople = isDeletedSheet ? deletedPeople : people;
+  const sheetPeopleById = isDeletedSheet ? deletedPeopleById : peopleById;
+  const sheetEditableColumnKeys = useMemo(
+    () => (isDeletedSheet ? new Set<string>() : editableColumnKeys),
+    [isDeletedSheet, editableColumnKeys],
+  );
   const layout = useMemo(
     () =>
       normalizeFastContactsSheetLayout(fastContactsSheetLayouts[activeTab.key]),
@@ -286,11 +328,15 @@ export const FastContactsPageContent = () => {
     [searchText],
   );
   const searchTextByPersonId = useMemo(
-    () => getFastContactsSearchTextByPersonId({ people, formatContext }),
-    [people, formatContext],
+    () =>
+      getFastContactsSearchTextByPersonId({
+        people: sheetPeople,
+        formatContext,
+      }),
+    [sheetPeople, formatContext],
   );
 
-  const computeRowIdsFor = (candidates: typeof people) =>
+  const computeRowIdsFor = (candidates: typeof sheetPeople) =>
     computeFastContactsRowIds({
       people: candidates,
       tab: activeTab,
@@ -306,6 +352,7 @@ export const FastContactsPageContent = () => {
     layout.filters,
     searchWords,
     fullLoadCount,
+    isDeletedSheet ? deletedPeople.map((person) => person.id) : null,
   ]);
   const [rowOrder, setRowOrder] = useState<RowOrder>({
     signature: '',
@@ -317,8 +364,8 @@ export const FastContactsPageContent = () => {
   if (rowOrder.signature !== rowOrderSignature) {
     currentRowOrder = {
       signature: rowOrderSignature,
-      rowIds: computeRowIdsFor(people),
-      knownPersonIds: new Set(people.map((person) => person.id)),
+      rowIds: computeRowIdsFor(sheetPeople),
+      knownPersonIds: new Set(sheetPeople.map((person) => person.id)),
     };
     setRowOrder(currentRowOrder);
   }
@@ -326,7 +373,7 @@ export const FastContactsPageContent = () => {
   const rows = useMemo(() => {
     const pinnedIdSet = new Set(pinnedPersonIds);
     const newcomerIds = computeRowIdsFor(
-      people.filter(
+      sheetPeople.filter(
         (person) =>
           !currentRowOrder.knownPersonIds.has(person.id) &&
           !pinnedIdSet.has(person.id),
@@ -338,21 +385,23 @@ export const FastContactsPageContent = () => {
       ...currentRowOrder.rowIds.filter((rowId) => !pinnedIdSet.has(rowId)),
       ...newcomerIds,
     ]
-      .map((rowId) => peopleById.get(rowId))
+      .map((rowId) => sheetPeopleById.get(rowId))
       .filter(isDefined);
     // computeRowIdsFor reads the same inputs as the dependencies listed here.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRowOrder, pinnedPersonIds, people, peopleById]);
+  }, [currentRowOrder, pinnedPersonIds, sheetPeople, sheetPeopleById]);
 
   const countByTabKey = useMemo(
     () =>
       Object.fromEntries(
         FAST_CONTACTS_TABS.map((tab) => [
           tab.key,
-          people.filter((person) => tab.includesPerson(person)).length,
+          tab.isDeletedSheet === true
+            ? deletedPeople.length
+            : people.filter((person) => tab.includesPerson(person)).length,
         ]),
       ) as Record<FastContactsTabKey, number>,
-    [people],
+    [people, deletedPeople],
   );
 
   const hasActiveFilters =
@@ -392,7 +441,44 @@ export const FastContactsPageContent = () => {
   const handleTabChange = (tabKey: FastContactsTabKey) => {
     setFastContactsActiveTab(tabKey);
     setPinnedPersonIds([]);
+    setIsDraftRowVisible(false);
     resetSelection();
+
+    // Others may have deleted or restored contacts since the last load.
+    if (FAST_CONTACTS_TABS.find((tab) => tab.key === tabKey)?.isDeletedSheet) {
+      void reloadDeletedPeople();
+    }
+  };
+
+  const openPersonInSidePanel = (personId: string) =>
+    openRecordInSidePanel({
+      recordId: personId,
+      objectNameSingular: CoreObjectNameSingular.Person,
+      resetNavigationStack: true,
+    });
+
+  // While the panel shows a contact, it follows the active row.
+  const handleSelectionChange = (nextSelection: FastContactsSelection) => {
+    setSelection(nextSelection);
+
+    if (!store.get(isSidePanelOpenedState.atom)) {
+      return;
+    }
+
+    const shownPath = store.get(sidePanelNavigationStackState.atom).at(-1)
+      ?.routedLocation?.pathname;
+    const focusedPersonId = rows[nextSelection.focus.rowIndex]?.id;
+
+    if (
+      !isDefined(shownPath) ||
+      !shownPath.startsWith(PERSON_RECORD_PATH_PREFIX) ||
+      !isDefined(focusedPersonId) ||
+      shownPath === `${PERSON_RECORD_PATH_PREFIX}${focusedPersonId}`
+    ) {
+      return;
+    }
+
+    openPersonInSidePanel(focusedPersonId);
   };
 
   const handleSearchTextChange = (nextSearchText: string) => {
@@ -490,6 +576,10 @@ export const FastContactsPageContent = () => {
     skippedCells: FastContactsSkippedCell[],
     isSingleCellEdit: boolean,
   ) => {
+    if (isDeletedSheet) {
+      return;
+    }
+
     const validWrites: FastContactsCellWrite[] = [];
     const allSkippedCells = [...skippedCells];
 
@@ -704,9 +794,35 @@ export const FastContactsPageContent = () => {
   };
 
   const handleOpenPerson = (personId: string) =>
-    navigateApp(AppPath.RecordShowPage, {
+    openPersonInSidePanel(personId);
+
+  // Names are captured when the dialog opens, so they match what is deleted.
+  const [personIdsToDelete, setPersonIdsToDelete] = useState<string[]>([]);
+
+  const handleDeleteClick = () => {
+    setPersonIdsToDelete(selectedRowIds);
+    openDialog(FAST_CONTACTS_DELETE_DIALOG_ID);
+  };
+
+  const handleDeleteConfirm = () => {
+    const personIds = personIdsToDelete;
+
+    setPersonIdsToDelete([]);
+    resetSelection();
+    void writer.deletePeople(personIds);
+  };
+
+  const handleRestore = () => {
+    const personIds = selectedRowIds;
+
+    resetSelection();
+    void writer.restorePeople(personIds);
+  };
+
+  const { openMergeRecordsPageInSidePanel } =
+    useOpenMergeRecordsPageInSidePanel({
       objectNameSingular: CoreObjectNameSingular.Person,
-      objectRecordId: personId,
+      objectRecordIds: selectedRowIds,
     });
 
   const handleCreateCompanyForPerson = async (
@@ -816,9 +932,16 @@ export const FastContactsPageContent = () => {
         selectedRowCount={selectedRowIds.length}
         layout={layout}
         editContext={editContext}
-        editableColumnKeys={editableColumnKeys}
+        editableColumnKeys={sheetEditableColumnKeys}
         canCreateContacts={objectPermissions.canUpdateObjectRecords}
+        canDeleteContacts={objectPermissions.canSoftDeleteObjectRecords}
+        canMergeContacts={canMergeContacts}
+        isDeletedSheet={isDeletedSheet}
         onNewContact={handleNewContact}
+        onImport={() => openObjectRecordsSpreadsheetImportDialog()}
+        onDelete={handleDeleteClick}
+        onRestore={handleRestore}
+        onMerge={() => void openMergeRecordsPageInSidePanel()}
         onToggleColumn={handleToggleColumn}
         onResetLayout={() => updateLayout(getDefaultFastContactsSheetLayout)}
         onExport={handleExport}
@@ -833,12 +956,12 @@ export const FastContactsPageContent = () => {
         columnWidths={columnWidths}
         layout={layout}
         editContext={editContext}
-        editableColumnKeys={editableColumnKeys}
+        editableColumnKeys={sheetEditableColumnKeys}
         selection={selection}
         openMenuColumnKey={columnMenu?.columnKey ?? null}
         isDraftRowVisible={isDraftRowVisible}
         pendingEditingCell={pendingEditingCell}
-        onSelectionChange={setSelection}
+        onSelectionChange={handleSelectionChange}
         onPendingEditingCellUsed={handlePendingEditingCellUsed}
         onWriteCells={(writes, isSingleCellEdit) =>
           writeCells(writes, [], isSingleCellEdit)
@@ -912,6 +1035,10 @@ export const FastContactsPageContent = () => {
         />
       )}
       <FastContactsHandoverDialog request={writer.handoverRequest} />
+      <FastContactsDeleteDialog
+        personNames={personIdsToDelete.map(formatPersonName)}
+        onConfirm={handleDeleteConfirm}
+      />
     </StyledContainer>
   );
 };

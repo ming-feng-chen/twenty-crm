@@ -10,4 +10,4 @@ Added 2026-10-26. The Contacts page (`FAST-CONTACTS-SPEC.md`) has All, Partner, 
 - Airport contacts
 - Cold
 
-Once Contacts is live, the owner removes them from the sidebar but keeps the views. If they are not being used, consider deleting the views from the CRM. Check with the owner first.
+Removed from the sidebar on 2026-10-26, together with People; the views are kept. If they are not being used, consider deleting the views from the CRM. Check with the owner first.

@@ -25,4 +25,11 @@ export const FAST_CONTACTS_TABS: FastContactsTab[] = [
       !isDefined(person.nextActionDate) &&
       !FAST_CONTACTS_COLD_EXCLUDED_STAGES.includes(person.cadenceStage ?? ''),
   },
+  // Rows come from the deleted contacts, not from the live list.
+  {
+    key: 'deleted',
+    label: msg`Deleted`,
+    includesPerson: () => true,
+    isDeletedSheet: true,
+  },
 ];

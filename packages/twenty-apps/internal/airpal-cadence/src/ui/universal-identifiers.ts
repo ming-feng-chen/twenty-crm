@@ -23,10 +23,12 @@ export const MY_DAY_RULES_TAB_UNIVERSAL_IDENTIFIER =
 export const MY_DAY_RULES_WIDGET_UNIVERSAL_IDENTIFIER =
   '96c45d0e-cdf2-455a-aae2-817d2260ed74';
 
-// Cold view and its sidebar item
+// Sidebar link to the Contacts page, which lives in twenty-front at /contacts
+export const CONTACTS_NAVIGATION_MENU_ITEM_UNIVERSAL_IDENTIFIER =
+  '8a543c1e-e7ea-445d-8c8b-5bb381acfaa6';
+
+// Cold view
 export const COLD_VIEW_UNIVERSAL_IDENTIFIER = 'a26c6a00-788a-4634-aea7-06edccdefb27';
-export const COLD_NAVIGATION_MENU_ITEM_UNIVERSAL_IDENTIFIER =
-  '4bcc53c7-759a-4632-ba91-d4ede02ef4de';
 export const COLD_VIEW_NO_DATE_FILTER_UNIVERSAL_IDENTIFIER =
   'b08b7700-f63c-4508-b39f-3944ea15bccf';
 export const COLD_VIEW_LIVE_STAGE_FILTER_UNIVERSAL_IDENTIFIER =

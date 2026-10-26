@@ -12,6 +12,7 @@ The page is a Google Sheets-like grid of people. It loads every person at once, 
 | Partner | person's company `group` = PARTNER |
 | Airport | person's company `group` = AIRPORT |
 | Cold | `nextActionDate` empty AND `cadenceStage` not PILOT_AGREED or DEAD (same rule as the Cold view, cadence SPEC §6) |
+| Deleted | deleted contacts, read-only; see §10 |
 
 Each sheet keeps its own search, filters and sort.
 
@@ -60,15 +61,15 @@ Read-only cells look muted; typing in them does nothing. The first 12 are shown 
 ## 4. Editing, selection, clipboard, undo
 
 - Typing replaces the active cell; Enter, F2 or double-click edits it. Enter saves and moves down, Tab saves and moves right, Escape cancels.
-- Opening a contact: the open arrow shown on hover in the Name cell, or Ctrl+Enter (Cmd+Enter on Mac).
+- Opening a contact: the open arrow shown on hover in the Name cell, or Ctrl+Enter (Cmd+Enter on Mac), opens it in the right-hand panel beside the grid (the full record: fields, touches, notes, tasks, emails, commands). While the panel shows a contact, moving to another row shows that row's contact. Clicking a cell never opens the panel by itself.
 - Delete or Backspace clears the selected cells, except Name.
 - Invalid values (bad email, unreadable date) are not saved; the cell flashes and a message says why.
 - Range selection: drag, Shift+click, Shift+arrows. Ctrl+C copies the range as tab-separated text, without headers.
 - Paste: a block fills down and right from the active cell; a single value pasted onto a selected range fills every cell. Dropdown, Owner, Company and Tags values must match an existing option, member, company or tag name (case-insensitive); several tags are separated by commas or semicolons, and copying a Tags cell gives the same form. Paste never creates companies, tags or contacts. Rows beyond the end are ignored. Read-only columns are skipped. Good cells save, bad ones are skipped and listed.
 - Row numbers on the far left: click selects a row, Shift+click a range, Ctrl+click adds, the corner selects every shown row. With rows selected the toolbar shows "N selected" and "Change…" for Owner, Stage, Health, Company, Next action date, Snooze until, Revisit on, Opted out, Opt-out reason, plus "Add tag" and "Remove tag" (other tags on each contact are kept). Text columns are bulk-changed by pasting.
-- No delete-contact action in the grid.
+- Deleting, importing and merging contacts: §10.
 - Ctrl+Z undoes the viewer's own changes from this page visit, one step at a time; a paste or bulk change is one step. It skips any cell a teammate changed since, and says so. Undoing a handover restores the owner but not a reply that Start fresh cleared (accepted).
-- No confirmation dialogs except the handover choice in §5.
+- No confirmation dialogs except the handover choice in §5 and deleting contacts (§10).
 - Concurrent edits: last save wins, as in the rest of the CRM.
 - Permissions: whatever the viewer's role allows elsewhere.
 
@@ -99,4 +100,13 @@ Decided 2026-10-26. Tags group people by role and live in the Cadence app (`pack
 
 ## 9. Rollout
 
-Not yet deployed (2026-10-26). Built and tested locally, then tried on staging before production. Deploy the Cadence app before the front: the grid asks for `tags`, which exists only once the app is applied. Once the team uses Contacts, the owner adds a "Contacts" link to the sidebar and removes Partner contacts, Airport contacts and Cold from it; see `AIRPAL-BACKLOG.md`.
+Tags and the editable grid went live on 2026-10-26 (image 4d52242589), Cadence app first because the grid asks for `tags`. Decided the same day: Contacts is the one place for contacts. The Cadence app adds a "Contacts" sidebar link (first in Workspace) and no longer adds Cold, Partner contacts or Airport contacts; People is removed from the sidebar. The views stay in the CRM.
+
+## 10. Delete, import, merge
+
+Decided 2026-10-26 (owner: "1 universal space", features chosen by Claude).
+
+- Delete: with rows selected, "Delete" asks "Delete N contacts?" naming them, then soft-deletes them as People does. Ctrl+Z restores them (one step, like an edit). Needs the role's delete right.
+- Deleted sheet: the deleted contacts, read-only. With rows selected, "Restore" brings them back; Ctrl+Z undoes a restore. There is no permanent delete.
+- Import: "Import" opens Twenty's CSV import (upload, match columns, review), the same as People. Rows whose email already exists update that contact instead of adding a second one. The grid reloads when the import ends. Needs the create right.
+- Merge: with 2 or more rows selected, "Merge" opens Twenty's merge screen in the right-hand panel (choose the values to keep). The other contacts are deleted and the merged one opens in the panel; the grid stays. Needs edit and delete rights.

@@ -3,6 +3,7 @@ import { IconUser } from 'twenty-ui/icon';
 import { useTheme } from 'twenty-ui/theme';
 
 import { FastContactsPageContent } from '@/fast-contacts/components/FastContactsPageContent';
+import { SpreadsheetImportProvider } from '@/spreadsheet-import/provider/components/SpreadsheetImportProvider';
 import { PageCardHeader } from '@/ui/layout/page/components/PageCardHeader';
 import { PageCardLayout } from '@/ui/layout/page/components/PageCardLayout';
 
@@ -19,7 +20,9 @@ export const FastContactsPage = () => {
         />
       }
     >
-      <FastContactsPageContent />
+      <SpreadsheetImportProvider>
+        <FastContactsPageContent />
+      </SpreadsheetImportProvider>
     </PageCardLayout>
   );
 };

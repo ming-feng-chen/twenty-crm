@@ -12,7 +12,9 @@ import { FAST_CONTACTS_SAVE_CONCURRENCY } from '@/fast-contacts/constants/FastCo
 import { CREATE_FAST_CONTACTS_COMPANY_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsCompanyMutation';
 import { CREATE_FAST_CONTACTS_PERSON_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsPersonMutation';
 import { CREATE_FAST_CONTACTS_PERSON_TAGS_MUTATION } from '@/fast-contacts/graphql/mutations/CreateFastContactsPersonTagsMutation';
+import { DELETE_FAST_CONTACTS_PEOPLE_MUTATION } from '@/fast-contacts/graphql/mutations/DeleteFastContactsPeopleMutation';
 import { DELETE_FAST_CONTACTS_PERSON_TAGS_MUTATION } from '@/fast-contacts/graphql/mutations/DeleteFastContactsPersonTagsMutation';
+import { RESTORE_FAST_CONTACTS_PEOPLE_MUTATION } from '@/fast-contacts/graphql/mutations/RestoreFastContactsPeopleMutation';
 import { UPDATE_FAST_CONTACTS_PERSON_MUTATION } from '@/fast-contacts/graphql/mutations/UpdateFastContactsPersonMutation';
 import { type FastContactsCellValue } from '@/fast-contacts/types/FastContactsCellValue';
 import {
@@ -53,6 +55,11 @@ type SaveOutcome = {
   failedCells: FastContactsSkippedCell[];
 };
 
+type UndoStep =
+  | { type: 'cells'; changes: FastContactsCellChange[] }
+  | { type: 'delete'; personIds: string[] }
+  | { type: 'restore'; personIds: string[] };
+
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -67,10 +74,14 @@ const isSameValue = (
 export const useFastContactsWriter = ({
   peopleByIdAtom,
   upsertPeopleLocally,
+  removePeopleLocally,
+  onDeletedPeopleChange,
   formatPersonName,
 }: {
   peopleByIdAtom: PrimitiveAtom<Map<string, FastContactsPerson>>;
   upsertPeopleLocally: (people: FastContactsPerson[]) => void;
+  removePeopleLocally: (personIds: string[]) => void;
+  onDeletedPeopleChange: () => void;
   formatPersonName: (personId: string) => string;
 }) => {
   const { t } = useLingui();
@@ -82,8 +93,10 @@ export const useFastContactsWriter = ({
   const store = useStore();
   // Read through the store inside async flows, which must see edits made since they started.
   const getPeopleById = () => store.get(peopleByIdAtom);
-  // One step per edit, paste or bulk change, kept for this visit of the page.
-  const [undoStepsAtom] = useState(() => atom<FastContactsCellChange[][]>([]));
+  // One step per edit, paste, bulk change, delete or restore, kept for this visit of the page.
+  const [undoStepsAtom] = useState(() => atom<UndoStep[]>([]));
+  const pushUndoStep = (undoStep: UndoStep) =>
+    store.set(undoStepsAtom, [...store.get(undoStepsAtom), undoStep]);
   const [handoverRequest, setHandoverRequest] =
     useState<FastContactsHandoverRequest | null>(null);
 
@@ -341,6 +354,75 @@ export const useFastContactsWriter = ({
     return { savedChanges, failedCells };
   };
 
+  const deletePeopleOnServer = async (personIds: string[]) => {
+    await apolloCoreClient.mutate({
+      mutation: DELETE_FAST_CONTACTS_PEOPLE_MUTATION,
+      variables: { filter: { id: { in: personIds } } },
+      fetchPolicy: 'no-cache',
+    });
+    removePeopleLocally(personIds);
+    onDeletedPeopleChange();
+  };
+
+  const restorePeopleOnServer = async (personIds: string[]) => {
+    await apolloCoreClient.mutate({
+      mutation: RESTORE_FAST_CONTACTS_PEOPLE_MUTATION,
+      variables: { filter: { id: { in: personIds } } },
+      fetchPolicy: 'no-cache',
+    });
+    await refreshPeopleFromServer(personIds);
+    onDeletedPeopleChange();
+  };
+
+  const deletePeople = async (personIds: string[]) => {
+    if (personIds.length === 0) {
+      return;
+    }
+
+    try {
+      await deletePeopleOnServer(personIds);
+      pushUndoStep({ type: 'delete', personIds });
+      enqueueToast({
+        status: 'success',
+        children: plural(personIds.length, {
+          one: '# contact deleted. Ctrl+Z to undo.',
+          other: '# contacts deleted. Ctrl+Z to undo.',
+        }),
+        description: t`Deleted contacts can be restored from the Deleted sheet.`,
+      });
+    } catch (error) {
+      enqueueToast({
+        status: 'error',
+        children: t`The contacts could not be deleted`,
+        description: getErrorMessage(error),
+      });
+    }
+  };
+
+  const restorePeople = async (personIds: string[]) => {
+    if (personIds.length === 0) {
+      return;
+    }
+
+    try {
+      await restorePeopleOnServer(personIds);
+      pushUndoStep({ type: 'restore', personIds });
+      enqueueToast({
+        status: 'success',
+        children: plural(personIds.length, {
+          one: '# contact restored',
+          other: '# contacts restored',
+        }),
+      });
+    } catch (error) {
+      enqueueToast({
+        status: 'error',
+        children: t`The contacts could not be restored`,
+        description: getErrorMessage(error),
+      });
+    }
+  };
+
   const undoLastStep = async () => {
     const undoSteps = store.get(undoStepsAtom);
     const undoStep = undoSteps.at(-1);
@@ -353,7 +435,26 @@ export const useFastContactsWriter = ({
       return;
     }
 
-    const reversibleChanges = undoStep.filter((change) => {
+    if (undoStep.type !== 'cells') {
+      try {
+        if (undoStep.type === 'delete') {
+          await restorePeopleOnServer(undoStep.personIds);
+        } else {
+          await deletePeopleOnServer(undoStep.personIds);
+        }
+        enqueueToast({ status: 'success', children: t`Undone` });
+      } catch (error) {
+        enqueueToast({
+          status: 'error',
+          children: t`Could not undo`,
+          description: getErrorMessage(error),
+        });
+      }
+
+      return;
+    }
+
+    const reversibleChanges = undoStep.changes.filter((change) => {
       const person = getPeopleById().get(change.personId);
 
       return (
@@ -361,7 +462,8 @@ export const useFastContactsWriter = ({
         isSameValue(change, person[change.columnKey], change.value)
       );
     });
-    const changedSinceCount = undoStep.length - reversibleChanges.length;
+    const changedSinceCount =
+      undoStep.changes.length - reversibleChanges.length;
 
     const { failedCells } = await saveChanges(
       reversibleChanges.map((change) => ({
@@ -449,7 +551,7 @@ export const useFastContactsWriter = ({
         : { savedChanges: [], failedCells: [] };
 
     if (savedChanges.length > 0) {
-      store.set(undoStepsAtom, [...store.get(undoStepsAtom), savedChanges]);
+      pushUndoStep({ type: 'cells', changes: savedChanges });
     }
 
     const allSkippedCells = [...skippedCells, ...failedCells];
@@ -574,6 +676,8 @@ export const useFastContactsWriter = ({
   return {
     writeCells,
     createTag,
+    deletePeople,
+    restorePeople,
     undoLastStep,
     createPerson,
     createCompany,

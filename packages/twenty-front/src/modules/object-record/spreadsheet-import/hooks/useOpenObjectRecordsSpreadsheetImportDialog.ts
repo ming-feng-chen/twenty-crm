@@ -17,6 +17,7 @@ import { useToast } from 'twenty-ui/components/feedback';
 
 export const useOpenObjectRecordsSpreadsheetImportDialog = (
   objectNameSingular: string,
+  onRecordsImported?: () => void,
 ) => {
   const apolloCoreClient = useApolloCoreClient();
   const { openSpreadsheetImportDialog } = useOpenSpreadsheetImportDialog();
@@ -87,6 +88,7 @@ export const useOpenObjectRecordsSpreadsheetImportDialog = (
               cache.evict({ fieldName: objectMetadataItem.namePlural });
             },
           });
+          onRecordsImported?.();
         } catch (error: any) {
           enqueueToast(getToastOptionsFromError({ error }));
         }

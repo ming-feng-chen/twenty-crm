@@ -2,7 +2,15 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { styled } from '@linaria/react';
 import { type KeyboardEvent, type Ref } from 'react';
 import { SearchInput } from 'twenty-ui/components/input';
-import { IconFileExport, IconFilter, IconPlus } from 'twenty-ui/icon';
+import {
+  IconArrowMerge,
+  IconFileExport,
+  IconFileImport,
+  IconFilter,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+} from 'twenty-ui/icon';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -63,7 +71,14 @@ type FastContactsToolbarProps = {
   editContext: FastContactsEditContext;
   editableColumnKeys: Set<string>;
   canCreateContacts: boolean;
+  canDeleteContacts: boolean;
+  canMergeContacts: boolean;
+  isDeletedSheet: boolean;
   onNewContact: () => void;
+  onImport: () => void;
+  onDelete: () => void;
+  onRestore: () => void;
+  onMerge: () => void;
   onToggleColumn: (columnKey: FastContactsColumnKey) => void;
   onResetLayout: () => void;
   onExport: () => void;
@@ -88,7 +103,14 @@ export const FastContactsToolbar = ({
   editContext,
   editableColumnKeys,
   canCreateContacts,
+  canDeleteContacts,
+  canMergeContacts,
+  isDeletedSheet,
   onNewContact,
+  onImport,
+  onDelete,
+  onRestore,
+  onMerge,
   onToggleColumn,
   onResetLayout,
   onExport,
@@ -167,23 +189,69 @@ export const FastContactsToolbar = ({
           <StyledCount>
             <Trans>{selectedRowCount} selected</Trans>
           </StyledCount>
-          <FastContactsBulkChangeDropdown
-            editContext={editContext}
-            editableColumnKeys={editableColumnKeys}
-            onApply={onBulkChange}
-            onApplyTag={onBulkTagChange}
-          />
+          {isDeletedSheet ? (
+            canDeleteContacts && (
+              <Button
+                size="sm"
+                variant="ghost"
+                startIcon={<IconRefresh />}
+                onClick={onRestore}
+              >
+                <Trans>Restore</Trans>
+              </Button>
+            )
+          ) : (
+            <>
+              <FastContactsBulkChangeDropdown
+                editContext={editContext}
+                editableColumnKeys={editableColumnKeys}
+                onApply={onBulkChange}
+                onApplyTag={onBulkTagChange}
+              />
+              {canMergeContacts && selectedRowCount >= 2 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  startIcon={<IconArrowMerge />}
+                  onClick={onMerge}
+                >
+                  <Trans>Merge</Trans>
+                </Button>
+              )}
+              {canDeleteContacts && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  color="danger"
+                  startIcon={<IconTrash />}
+                  onClick={onDelete}
+                >
+                  <Trans>Delete</Trans>
+                </Button>
+              )}
+            </>
+          )}
         </>
       )}
-      {canCreateContacts && (
-        <Button
-          size="sm"
-          variant="ghost"
-          startIcon={<IconPlus />}
-          onClick={onNewContact}
-        >
-          <Trans>New contact</Trans>
-        </Button>
+      {canCreateContacts && !isDeletedSheet && (
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            startIcon={<IconPlus />}
+            onClick={onNewContact}
+          >
+            <Trans>New contact</Trans>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            startIcon={<IconFileImport />}
+            onClick={onImport}
+          >
+            <Trans>Import</Trans>
+          </Button>
+        </>
       )}
       <FastContactsColumnsDropdown
         layout={layout}

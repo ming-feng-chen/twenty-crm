@@ -312,5 +312,6 @@ export const useFastContactsPeople = () => {
     personObjectMetadataItem,
     reloadPeople: loadAllPeople,
     upsertPeopleLocally,
+    removePeopleLocally: removePeople,
   };
 };

@@ -4,6 +4,8 @@ import { useMergeManyRecords } from '@/object-record/hooks/useMergeManyRecords';
 import { useMergeRecordsSelectedRecords } from '@/object-record/record-merge/hooks/useMergeRecordsSelectedRecords';
 import { isMergeInProgressState } from '@/object-record/record-merge/states/mergeInProgressState';
 import { mergeSettingsState } from '@/object-record/record-merge/states/mergeSettingsState';
+import { FAST_CONTACTS_PAGE_PATH } from '@/fast-contacts/constants/FastContactsPagePath';
+import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { useSidePanelMenu } from '@/side-panel/hooks/useSidePanelMenu';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
@@ -31,6 +33,7 @@ export const useMergeRecordsActions = ({
   const { t } = useLingui();
   const { enqueueToast } = useToast();
   const { closeSidePanelMenu } = useSidePanelMenu();
+  const { openRecordInSidePanel } = useOpenRecordInSidePanel();
 
   const navigate = useNavigateApp();
   const handleMergeRecords = async () => {
@@ -52,6 +55,18 @@ export const useMergeRecordsActions = ({
         status: 'success',
         children: t`Successfully merged ${recordCount} records`,
       });
+
+      // AirPal: a merge started from the Contacts grid keeps the grid and shows the result beside it.
+      if (window.location.pathname === FAST_CONTACTS_PAGE_PATH) {
+        openRecordInSidePanel({
+          recordId: mergedRecord.id,
+          objectNameSingular,
+          resetNavigationStack: true,
+        });
+
+        return;
+      }
+
       closeSidePanelMenu();
 
       navigate(AppPath.RecordShowPage, {
