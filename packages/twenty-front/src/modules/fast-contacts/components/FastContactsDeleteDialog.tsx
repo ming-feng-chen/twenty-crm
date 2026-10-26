@@ -27,7 +27,7 @@ export const FastContactsDeleteDialog = ({
         <>
           {otherCount > 0
             ? t`${shownNames} and ${otherCount} more.`
-            : shownNames}{' '}
+            : `${shownNames}.`}{' '}
           {t`You can undo with Ctrl+Z or restore them from the Deleted sheet.`}
         </>
       }

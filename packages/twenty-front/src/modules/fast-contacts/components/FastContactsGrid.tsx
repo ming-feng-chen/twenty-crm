@@ -512,6 +512,8 @@ export const FastContactsGrid = ({
 
     if (isCommand && event.key === 'Enter') {
       event.preventDefault();
+      // The side panel this opens also binds Ctrl+Enter (expand to full page).
+      event.stopPropagation();
       onOpenPerson(rows[focus.rowIndex].id);
 
       return;

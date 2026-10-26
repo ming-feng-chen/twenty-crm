@@ -12,6 +12,7 @@ import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
 import { currentWorkspaceMembersState } from '@/auth/states/currentWorkspaceMembersState';
+import { contextStoreCurrentObjectMetadataItemIdComponentState } from '@/context-store/states/contextStoreCurrentObjectMetadataItemIdComponentState';
 import {
   type FastContactsColumnMenuAnchor,
   FastContactsColumnMenu,
@@ -23,6 +24,7 @@ import { FastContactsTabBar } from '@/fast-contacts/components/FastContactsTabBa
 import { FastContactsToolbar } from '@/fast-contacts/components/FastContactsToolbar';
 import { FAST_CONTACTS_COLUMNS } from '@/fast-contacts/constants/FastContactsColumns';
 import { FAST_CONTACTS_DELETE_DIALOG_ID } from '@/fast-contacts/constants/FastContactsDeleteDialogId';
+import { FAST_CONTACTS_IMPORT_CONTEXT_STORE_INSTANCE_ID } from '@/fast-contacts/constants/FastContactsImportContextStoreInstanceId';
 import { FAST_CONTACTS_TABS } from '@/fast-contacts/constants/FastContactsTabs';
 import { useFastContactsCellFormatContext } from '@/fast-contacts/hooks/useFastContactsCellFormatContext';
 import { useFastContactsCompanies } from '@/fast-contacts/hooks/useFastContactsCompanies';
@@ -87,6 +89,7 @@ const StyledContainer = styled.div`
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 `;
 
 const StyledMessage = styled.div`
@@ -819,6 +822,16 @@ export const FastContactsPageContent = () => {
     void writer.restorePeople(personIds);
   };
 
+  const handleImport = () => {
+    store.set(
+      contextStoreCurrentObjectMetadataItemIdComponentState.atomFamily({
+        instanceId: FAST_CONTACTS_IMPORT_CONTEXT_STORE_INSTANCE_ID,
+      }),
+      personObjectMetadataItem.id,
+    );
+    openObjectRecordsSpreadsheetImportDialog();
+  };
+
   const { openMergeRecordsPageInSidePanel } =
     useOpenMergeRecordsPageInSidePanel({
       objectNameSingular: CoreObjectNameSingular.Person,
@@ -938,7 +951,7 @@ export const FastContactsPageContent = () => {
         canMergeContacts={canMergeContacts}
         isDeletedSheet={isDeletedSheet}
         onNewContact={handleNewContact}
-        onImport={() => openObjectRecordsSpreadsheetImportDialog()}
+        onImport={handleImport}
         onDelete={handleDeleteClick}
         onRestore={handleRestore}
         onMerge={() => void openMergeRecordsPageInSidePanel()}

@@ -10,6 +10,8 @@ const StyledTabBar = styled.div`
   border-top: 1px solid ${themeCssVariables.border.color.medium};
   display: flex;
   gap: ${themeCssVariables.spacing[1]};
+  min-width: 0;
+  overflow-x: auto;
   padding: 0 ${themeCssVariables.spacing[2]};
 `;
 
@@ -19,9 +21,11 @@ const StyledTab = styled.button`
   border-bottom: 2px solid transparent;
   color: ${themeCssVariables.font.color.secondary};
   cursor: pointer;
+  flex-shrink: 0;
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.md};
   padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[3]};
+  white-space: nowrap;
 
   &[aria-selected='true'] {
     background: ${themeCssVariables.background.primary};
