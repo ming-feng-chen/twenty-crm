@@ -1,0 +1,1 @@
+export const FAST_CONTACTS_ROW_NUMBER_WIDTH_IN_PX = 48;

@@ -1,23 +1,10 @@
 import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+import { buildFastContactsTestPerson } from '@/fast-contacts/testing/fastContactsTestData';
 import { applyFastContactsRefresh } from '@/fast-contacts/utils/applyFastContactsRefresh';
 import { mergeFastContactsFullLoad } from '@/fast-contacts/utils/mergeFastContactsFullLoad';
 
-const buildPerson = (id: string, jobTitle: string): FastContactsPerson => ({
-  id,
-  position: 0,
-  updatedAt: '2026-10-22T10:00:00.000Z',
-  name: null,
-  jobTitle,
-  cadenceStage: null,
-  cadenceStep: null,
-  nextActionDate: null,
-  lastTouchOn: null,
-  linkedinLink: null,
-  emails: null,
-  linkedinConnectionNote: null,
-  company: null,
-  cadenceOwner: null,
-});
+const buildPerson = (id: string, jobTitle: string): FastContactsPerson =>
+  buildFastContactsTestPerson({ id, jobTitle });
 
 describe('mergeFastContactsFullLoad', () => {
   it('should replace the state with the loaded people', () => {

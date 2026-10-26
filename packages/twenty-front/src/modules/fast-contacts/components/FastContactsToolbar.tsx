@@ -2,10 +2,17 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { styled } from '@linaria/react';
 import { type KeyboardEvent, type Ref } from 'react';
 import { SearchInput } from 'twenty-ui/components/input';
+import { IconFileExport, IconFilter, IconPlus } from 'twenty-ui/icon';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { FastContactsBulkChangeDropdown } from '@/fast-contacts/components/FastContactsBulkChangeDropdown';
+import { FastContactsColumnsDropdown } from '@/fast-contacts/components/FastContactsColumnsDropdown';
 import { FAST_CONTACTS_SEARCH_INPUT_FOCUS_ID } from '@/fast-contacts/constants/FastContactsSearchInputFocusId';
+import { type FastContactsCellValue } from '@/fast-contacts/types/FastContactsCellValue';
+import { type FastContactsColumnKey } from '@/fast-contacts/types/FastContactsColumn';
+import { type FastContactsEditContext } from '@/fast-contacts/types/FastContactsEditContext';
+import { type FastContactsSheetLayout } from '@/fast-contacts/types/FastContactsSheetLayout';
 import { usePushFocusItemToFocusStack } from '@/ui/utilities/focus/hooks/usePushFocusItemToFocusStack';
 import { useRemoveFocusItemFromFocusStackById } from '@/ui/utilities/focus/hooks/useRemoveFocusItemFromFocusStackById';
 import { useRemoveFocusItemFromFocusStackOnUnmount } from '@/ui/utilities/focus/hooks/useRemoveFocusItemFromFocusStackOnUnmount';
@@ -15,17 +22,30 @@ const StyledToolbar = styled.div`
   align-items: center;
   border-bottom: 1px solid ${themeCssVariables.border.color.light};
   display: flex;
-  gap: ${themeCssVariables.spacing[3]};
+  flex-wrap: wrap;
+  gap: ${themeCssVariables.spacing[2]};
   padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[3]};
 `;
 
 const StyledSearchContainer = styled.div`
-  width: 280px;
+  width: 240px;
 `;
 
-const StyledShowingCount = styled.div`
+const StyledCount = styled.div`
   color: ${themeCssVariables.font.color.secondary};
   white-space: nowrap;
+`;
+
+const StyledFilteredBadge = styled.div`
+  align-items: center;
+  color: ${themeCssVariables.color.blue};
+  display: flex;
+  gap: ${themeCssVariables.spacing[1]};
+  white-space: nowrap;
+`;
+
+const StyledSpacer = styled.div`
+  flex: 1;
 `;
 
 type FastContactsToolbarProps = {
@@ -37,6 +57,19 @@ type FastContactsToolbarProps = {
   totalCount: number;
   hasActiveFilters: boolean;
   onClearFilters: () => void;
+  selectedRowCount: number;
+  layout: FastContactsSheetLayout;
+  editContext: FastContactsEditContext;
+  editableColumnKeys: Set<string>;
+  canCreateContacts: boolean;
+  onNewContact: () => void;
+  onToggleColumn: (columnKey: FastContactsColumnKey) => void;
+  onResetLayout: () => void;
+  onExport: () => void;
+  onBulkChange: (
+    columnKey: FastContactsColumnKey,
+    value: FastContactsCellValue,
+  ) => void;
 };
 
 export const FastContactsToolbar = ({
@@ -48,11 +81,22 @@ export const FastContactsToolbar = ({
   totalCount,
   hasActiveFilters,
   onClearFilters,
+  selectedRowCount,
+  layout,
+  editContext,
+  editableColumnKeys,
+  canCreateContacts,
+  onNewContact,
+  onToggleColumn,
+  onResetLayout,
+  onExport,
+  onBulkChange,
 }: FastContactsToolbarProps) => {
   const { t } = useLingui();
   const { pushFocusItemToFocusStack } = usePushFocusItemToFocusStack();
   const { removeFocusItemFromFocusStackById } =
     useRemoveFocusItemFromFocusStackById();
+  const hiddenCount = totalCount - shownCount;
 
   useRemoveFocusItemFromFocusStackOnUnmount({
     focusId: FAST_CONTACTS_SEARCH_INPUT_FOCUS_ID,
@@ -90,7 +134,7 @@ export const FastContactsToolbar = ({
         <SearchInput
           ref={searchInputRef}
           size="sm"
-          placeholder={t`Search this table`}
+          placeholder={t`Search this sheet`}
           value={searchText}
           onValueChange={(value) => onSearchTextChange(value)}
           onKeyDown={handleKeyDown}
@@ -98,16 +142,62 @@ export const FastContactsToolbar = ({
           onBlur={handleBlur}
         />
       </StyledSearchContainer>
-      <StyledShowingCount>
+      <StyledCount>
         <Trans>
           Showing {shownCount} of {totalCount}
         </Trans>
-      </StyledShowingCount>
+      </StyledCount>
       {hasActiveFilters && (
-        <Button size="sm" variant="link" onClick={onClearFilters}>
-          <Trans>Clear filters</Trans>
+        <>
+          <StyledFilteredBadge>
+            <IconFilter size={14} />
+            <Trans>Filtered: {hiddenCount} hidden</Trans>
+          </StyledFilteredBadge>
+          <Button size="sm" variant="link" onClick={onClearFilters}>
+            <Trans>Clear filters</Trans>
+          </Button>
+        </>
+      )}
+      <StyledSpacer />
+      {selectedRowCount > 0 && (
+        <>
+          <StyledCount>
+            <Trans>{selectedRowCount} selected</Trans>
+          </StyledCount>
+          <FastContactsBulkChangeDropdown
+            editContext={editContext}
+            editableColumnKeys={editableColumnKeys}
+            onApply={onBulkChange}
+          />
+        </>
+      )}
+      {canCreateContacts && (
+        <Button
+          size="sm"
+          variant="ghost"
+          startIcon={<IconPlus />}
+          onClick={onNewContact}
+        >
+          <Trans>New contact</Trans>
         </Button>
       )}
+      <FastContactsColumnsDropdown
+        layout={layout}
+        onToggleColumn={onToggleColumn}
+        onResetLayout={onResetLayout}
+      />
+      <Button
+        size="sm"
+        variant="ghost"
+        startIcon={<IconFileExport />}
+        onClick={onExport}
+      >
+        {selectedRowCount > 0 ? (
+          <Trans>Export selected</Trans>
+        ) : (
+          <Trans>Export</Trans>
+        )}
+      </Button>
     </StyledToolbar>
   );
 };

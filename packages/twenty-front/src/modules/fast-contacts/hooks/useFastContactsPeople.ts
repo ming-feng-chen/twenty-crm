@@ -1,10 +1,11 @@
-import { useStore } from 'jotai';
+import { atom, useAtomValue, useStore } from 'jotai';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 
 import { useListenToObjectRecordOperationBrowserEvent } from '@/browser-event/hooks/useListenToObjectRecordOperationBrowserEvent';
 import { type ObjectRecordOperationBrowserEventDetail } from '@/browser-event/types/ObjectRecordOperationBrowserEventDetail';
 import { FAST_CONTACTS_COMPANY_OPERATION_SIGNATURE } from '@/fast-contacts/constants/FastContactsCompanyOperationSignature';
+import { FAST_CONTACTS_REFRESH_BATCH_DELAY_IN_MS } from '@/fast-contacts/constants/FastContactsRefreshBatchDelayInMs';
 import { FAST_CONTACTS_PERSON_OPERATION_SIGNATURE } from '@/fast-contacts/constants/FastContactsPersonOperationSignature';
 import { FAST_CONTACTS_RELOAD_ON_FOCUS_MIN_INTERVAL_IN_MS } from '@/fast-contacts/constants/FastContactsReloadOnFocusMinIntervalInMs';
 import { fastContactsFullLoadState } from '@/fast-contacts/states/fastContactsFullLoadState';
@@ -33,11 +34,23 @@ export const useFastContactsPeople = () => {
       objectNameSingular: CoreObjectNameSingular.Company,
     });
 
-  const [peopleById, setPeopleById] = useState(
-    () => new Map<string, FastContactsPerson>(),
+  // Edits read and update people synchronously through the store, so a
+  // second edit right after a first one sees its result.
+  const [peopleByIdAtom] = useState(() =>
+    atom(new Map<string, FastContactsPerson>()),
+  );
+  const peopleById = useAtomValue(peopleByIdAtom);
+  const setPeopleById = useCallback(
+    (
+      update: (
+        currentPeopleById: Map<string, FastContactsPerson>,
+      ) => Map<string, FastContactsPerson>,
+    ) => store.set(peopleByIdAtom, update),
+    [peopleByIdAtom, store],
   );
   const [loadStatus, setLoadStatus] =
     useState<FastContactsLoadStatus>('loading');
+  const [fullLoadCount, setFullLoadCount] = useState(0);
 
   const markRecordIdsChanged = useCallback(
     (recordIds: string[]) => {
@@ -79,6 +92,7 @@ export const useFastContactsPeople = () => {
         }),
       );
       setLoadStatus('loaded');
+      setFullLoadCount((count) => count + 1);
     } catch {
       if (isLatestFullLoad()) {
         setLoadStatus('failed');
@@ -91,7 +105,7 @@ export const useFastContactsPeople = () => {
         }));
       }
     }
-  }, [apolloCoreClient, store]);
+  }, [apolloCoreClient, setPeopleById, store]);
 
   const refreshPeople = useCallback(
     async ({
@@ -123,7 +137,7 @@ export const useFastContactsPeople = () => {
         await loadAllPeople();
       }
     },
-    [apolloCoreClient, loadAllPeople, markRecordIdsChanged],
+    [apolloCoreClient, loadAllPeople, markRecordIdsChanged, setPeopleById],
   );
 
   const removePeople = useCallback(
@@ -138,7 +152,47 @@ export const useFastContactsPeople = () => {
         }),
       );
     },
-    [markRecordIdsChanged],
+    [markRecordIdsChanged, setPeopleById],
+  );
+
+  // A paste or bulk change emits one event per person; refresh them in one query.
+  const [pendingRefreshAtom] = useState(() =>
+    atom<{
+      recordIds: Set<string>;
+      timeoutId: ReturnType<typeof setTimeout> | undefined;
+    }>({ recordIds: new Set<string>(), timeoutId: undefined }),
+  );
+
+  const queuePeopleRefresh = useCallback(
+    (recordIds: string[]) => {
+      const pendingRefresh = store.get(pendingRefreshAtom);
+
+      clearTimeout(pendingRefresh.timeoutId);
+
+      const timeoutId = setTimeout(() => {
+        const idsToRefresh = [...store.get(pendingRefreshAtom).recordIds];
+
+        store.set(pendingRefreshAtom, {
+          recordIds: new Set<string>(),
+          timeoutId: undefined,
+        });
+        void refreshPeople({
+          filter: { id: { in: idsToRefresh } },
+          recordIdsToRemoveIfMissing: idsToRefresh,
+        });
+      }, FAST_CONTACTS_REFRESH_BATCH_DELAY_IN_MS);
+
+      store.set(pendingRefreshAtom, {
+        recordIds: new Set([...pendingRefresh.recordIds, ...recordIds]),
+        timeoutId,
+      });
+    },
+    [pendingRefreshAtom, refreshPeople, store],
+  );
+
+  useEffect(
+    () => () => clearTimeout(store.get(pendingRefreshAtom).timeoutId),
+    [pendingRefreshAtom, store],
   );
 
   const handlePersonOperation = useCallback(
@@ -157,12 +211,24 @@ export const useFastContactsPeople = () => {
         return;
       }
 
-      void refreshPeople({
-        filter: { id: { in: recordIds } },
-        recordIdsToRemoveIfMissing: recordIds,
-      });
+      queuePeopleRefresh(recordIds);
     },
-    [loadAllPeople, refreshPeople, removePeople],
+    [loadAllPeople, queuePeopleRefresh, removePeople],
+  );
+
+  const upsertPeopleLocally = useCallback(
+    (upsertedPeople: FastContactsPerson[]) => {
+      markRecordIdsChanged(upsertedPeople.map((person) => person.id));
+
+      setPeopleById((currentPeopleById) =>
+        applyFastContactsRefresh({
+          currentPeopleById,
+          refreshedPeople: upsertedPeople,
+          recordIdsToRemoveIfMissing: [],
+        }),
+      );
+    },
+    [markRecordIdsChanged, setPeopleById],
   );
 
   // A company event only matters for its people's Company and group columns.
@@ -239,8 +305,12 @@ export const useFastContactsPeople = () => {
 
   return {
     people,
+    peopleById,
+    peopleByIdAtom,
     loadStatus,
+    fullLoadCount,
     personObjectMetadataItem,
     reloadPeople: loadAllPeople,
+    upsertPeopleLocally,
   };
 };

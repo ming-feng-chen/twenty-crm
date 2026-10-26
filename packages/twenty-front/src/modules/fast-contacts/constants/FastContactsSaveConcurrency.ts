@@ -1,0 +1,1 @@
+export const FAST_CONTACTS_SAVE_CONCURRENCY = 4;

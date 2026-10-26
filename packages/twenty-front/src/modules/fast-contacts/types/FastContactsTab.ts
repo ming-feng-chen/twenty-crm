@@ -1,9 +1,11 @@
 import { type MessageDescriptor } from '@lingui/core';
 
-export type FastContactsTabKey = 'all' | 'partner' | 'airport';
+import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
+
+export type FastContactsTabKey = 'all' | 'partner' | 'airport' | 'cold';
 
 export type FastContactsTab = {
   key: FastContactsTabKey;
   label: MessageDescriptor;
-  companyGroup: string | null;
+  includesPerson: (person: FastContactsPerson) => boolean;
 };
