@@ -1,3 +1,4 @@
+import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { styled } from '@linaria/react';
 import { saveAs } from 'file-saver';
@@ -161,6 +162,16 @@ export const FastContactsPageContent = () => {
       currentWorkspaceMembers,
       personObjectMetadataItem,
     ],
+  );
+
+  const uniqueColumnKeys = useMemo(
+    () =>
+      new Set<string>(
+        personObjectMetadataItem.fields
+          .filter((field) => field.isUnique === true)
+          .map((field) => field.name),
+      ),
+    [personObjectMetadataItem],
   );
 
   const editableColumnKeys = useMemo(
@@ -482,20 +493,48 @@ export const FastContactsPageContent = () => {
       writes: validWrites,
       peopleById,
     });
+    const describePerson = (personId: string) => {
+      const personName = formatPersonName(personId);
+      const companyName = peopleById.get(personId)?.company?.name ?? '';
 
-    if (duplicates.length > 0) {
-      const [firstDuplicate] = duplicates;
-      const duplicateName = formatPersonName(firstDuplicate.existingPersonId);
-      const companyName =
-        peopleById.get(firstDuplicate.existingPersonId)?.company?.name ?? '';
-      const otherCount = duplicates.length - 1;
+      return companyName === '' ? personName : `${personName} (${companyName})`;
+    };
+    // The database refuses a second contact with a unique value (the email),
+    // so those are skipped with a clear reason instead of a server error.
+    const blockingDuplicates = duplicates.filter((duplicate) =>
+      uniqueColumnKeys.has(duplicate.columnKey),
+    );
+    const warningDuplicates = duplicates.filter(
+      (duplicate) => !uniqueColumnKeys.has(duplicate.columnKey),
+    );
+
+    for (const duplicate of blockingDuplicates) {
+      const existingPerson = describePerson(duplicate.existingPersonId);
+
+      allSkippedCells.push({
+        personId: duplicate.personId,
+        columnKey: duplicate.columnKey,
+        reason: t`${existingPerson} already has this email`,
+      });
+    }
+
+    const writesToSave = validWrites.filter(
+      (write) =>
+        !blockingDuplicates.some(
+          (duplicate) =>
+            duplicate.personId === write.personId &&
+            duplicate.columnKey === write.columnKey,
+        ),
+    );
+
+    if (warningDuplicates.length > 0) {
+      const [firstDuplicate] = warningDuplicates;
+      const existingPerson = describePerson(firstDuplicate.existingPersonId);
+      const otherCount = warningDuplicates.length - 1;
 
       enqueueToast({
         status: 'warning',
-        children:
-          companyName === ''
-            ? t`Already exists: ${duplicateName}`
-            : t`Already exists: ${duplicateName} (${companyName})`,
+        children: t`Already exists: ${existingPerson}`,
         description:
           otherCount > 0
             ? t`And ${otherCount} more matching contacts.`
@@ -513,7 +552,7 @@ export const FastContactsPageContent = () => {
     }
 
     void writer.writeCells({
-      writes: validWrites,
+      writes: writesToSave,
       skippedCells: allSkippedCells,
       isSingleCellEdit,
     });
@@ -550,7 +589,10 @@ export const FastContactsPageContent = () => {
     if (outsideCellCount > 0) {
       enqueueToast({
         status: 'info',
-        children: t`${outsideCellCount} pasted cell(s) did not fit and were left out`,
+        children: plural(outsideCellCount, {
+          one: '# pasted cell did not fit and was left out',
+          other: '# pasted cells did not fit and were left out',
+        }),
       });
     }
 

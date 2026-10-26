@@ -104,6 +104,7 @@ export const FastContactsCellEditor = ({
       return (
         <FastContactsDateCellEditor
           instanceId={`fast-contacts-date-${person.id}-${column.key}`}
+          anchorRef={cellRef}
           value={person[column.key] as string | null}
           initialText={initialText}
           dateFormat={editContext.formatContext.dateFormat}

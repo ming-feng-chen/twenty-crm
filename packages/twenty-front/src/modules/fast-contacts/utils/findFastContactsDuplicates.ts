@@ -1,6 +1,7 @@
 import { isNonEmptyString } from '@sniptt/guards';
 
 import { type FastContactsCellWrite } from '@/fast-contacts/types/FastContactsCellWrite';
+import { type FastContactsColumnKey } from '@/fast-contacts/types/FastContactsColumn';
 import { type FastContactsPerson } from '@/fast-contacts/types/FastContactsPerson';
 import {
   type FieldEmailsValue,
@@ -9,6 +10,7 @@ import {
 
 export type FastContactsDuplicate = {
   personId: string;
+  columnKey: FastContactsColumnKey;
   existingPersonId: string;
 };
 
@@ -75,5 +77,11 @@ export const findFastContactsDuplicates = ({
 
     return existingPerson === undefined
       ? []
-      : [{ personId: write.personId, existingPersonId: existingPerson.id }];
+      : [
+          {
+            personId: write.personId,
+            columnKey: write.columnKey,
+            existingPersonId: existingPerson.id,
+          },
+        ];
   });

@@ -1,7 +1,6 @@
 import { styled } from '@linaria/react';
 import { atom, useStore } from 'jotai';
 import {
-  type ClipboardEvent,
   type KeyboardEvent,
   type MouseEvent,
   type RefObject,
@@ -651,8 +650,11 @@ export const FastContactsGrid = ({
     }
   };
 
-  const handleCopy = (event: ClipboardEvent<HTMLDivElement>) => {
-    if (isDefined(editingCell) || event.target !== event.currentTarget) {
+  const isGridFocused = () =>
+    !isDefined(editingCell) && document.activeElement === viewportRef.current;
+
+  const handleCopy = (event: ClipboardEvent) => {
+    if (!isGridFocused() || !isDefined(event.clipboardData)) {
       return;
     }
 
@@ -686,8 +688,8 @@ export const FastContactsGrid = ({
     );
   };
 
-  const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
-    if (isDefined(editingCell) || event.target !== event.currentTarget) {
+  const handlePaste = (event: ClipboardEvent) => {
+    if (!isGridFocused() || !isDefined(event.clipboardData)) {
       return;
     }
 
@@ -699,6 +701,18 @@ export const FastContactsGrid = ({
       onPasteValues(decodeFastContactsTsv(text));
     }
   };
+
+  // A focused grid that is not a text field does not reliably receive copy
+  // and paste events, so they are caught on the document while it has focus.
+  useEffect(() => {
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
+    };
+  });
 
   const toggleCheckbox = (personId: string, columnIndex: number) => {
     const rowIndex = rowIds.indexOf(personId);
@@ -753,8 +767,6 @@ export const FastContactsGrid = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onDoubleClick={handleDoubleClick}
-      onCopy={handleCopy}
-      onPaste={handlePaste}
     >
       <StyledCanvas
         style={{

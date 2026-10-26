@@ -1,13 +1,13 @@
-import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
-import { type FocusEvent, type KeyboardEvent, useRef, useState } from 'react';
+import { type KeyboardEvent, type RefObject, useRef, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
-import { themeCssVariables } from 'twenty-ui/theme';
+import { Dropdown } from 'twenty-ui/components/navigation';
 
 import {
   StyledFastContactsEditorContainer,
   StyledFastContactsEditorInput,
 } from '@/fast-contacts/components/cell-editors/FastContactsCellEditorStyles';
+import { useFastContactsEditorClose } from '@/fast-contacts/hooks/useFastContactsEditorClose';
 import { type FastContactsEditorMove } from '@/fast-contacts/types/FastContactsEditorMove';
 import { formatFastContactsDateForInput } from '@/fast-contacts/utils/formatFastContactsDateForInput';
 import { getFastContactsEditorMoveFromKey } from '@/fast-contacts/utils/getFastContactsEditorMoveFromKey';
@@ -15,25 +15,10 @@ import { parseFastContactsDateInput } from '@/fast-contacts/utils/parseFastConta
 import { type DateFormat } from '@/localization/constants/DateFormat';
 import { DatePicker } from '@/ui/input/components/internal/date/components/DatePicker';
 import { getDateFormatStringForDatePickerInputMask } from '~/utils/date-utils';
-import { useFastContactsEditorClose } from '@/fast-contacts/hooks/useFastContactsEditorClose';
-
-const StyledEditor = styled(StyledFastContactsEditorContainer)`
-  flex-direction: column;
-`;
-
-const StyledCalendar = styled.div`
-  background: ${themeCssVariables.background.primary};
-  border: 1px solid ${themeCssVariables.border.color.medium};
-  border-radius: ${themeCssVariables.border.radius.md};
-  box-shadow: ${themeCssVariables.boxShadow.strong};
-  left: 0;
-  outline: none;
-  position: absolute;
-  top: 100%;
-`;
 
 type FastContactsDateCellEditorProps = {
   instanceId: string;
+  anchorRef: RefObject<HTMLElement | null>;
   value: string | null;
   initialText: string | null;
   dateFormat: DateFormat;
@@ -41,8 +26,11 @@ type FastContactsDateCellEditorProps = {
   onCancel: () => void;
 };
 
+// Typing stays in the cell; the calendar floats beside it without taking
+// focus, so it can flip to stay on screen like the other pickers.
 export const FastContactsDateCellEditor = ({
   instanceId,
+  anchorRef,
   value,
   initialText,
   dateFormat,
@@ -51,7 +39,7 @@ export const FastContactsDateCellEditor = ({
 }: FastContactsDateCellEditorProps) => {
   const { t } = useLingui();
   const inputMask = getDateFormatStringForDatePickerInputMask(dateFormat);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const close = useFastContactsEditorClose();
   const [text, setText] = useState(
     initialText ?? formatFastContactsDateForInput({ date: value, dateFormat }),
@@ -89,14 +77,16 @@ export const FastContactsDateCellEditor = ({
     }
   };
 
-  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (!containerRef.current?.contains(event.relatedTarget as Node | null)) {
-      close(() => onCommitText(text, 'none'));
-    }
-  };
+  // Focus moving into the calendar (month and year pickers) keeps the editor open.
+  const handleBlur = () =>
+    setTimeout(() => {
+      if (!calendarRef.current?.contains(document.activeElement)) {
+        close(() => onCommitText(text, 'none'));
+      }
+    });
 
   return (
-    <StyledEditor ref={containerRef} onBlur={handleBlur}>
+    <StyledFastContactsEditorContainer>
       <StyledFastContactsEditorInput
         autoFocus
         aria-label={t`Date`}
@@ -104,19 +94,43 @@ export const FastContactsDateCellEditor = ({
         value={text}
         onChange={(event) => handleTextChange(event.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
       />
-      <StyledCalendar tabIndex={-1}>
-        <DatePicker
-          instanceId={instanceId}
-          plainDateString={calendarDate}
-          hideHeaderInput
-          keyboardEventsDisabled
-          onChange={setCalendarDate}
-          onClose={(pickedDate) =>
-            close(() => onCommitText(pickedDate ?? '', 'none'))
+      <Dropdown.Root
+        type="panel"
+        open
+        onInteractOutside={(event) => {
+          if (anchorRef.current?.contains(event.target)) {
+            event.preventDefault();
           }
-        />
-      </StyledCalendar>
-    </StyledEditor>
+        }}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            close(() => onCommitText(text, 'none'));
+          }
+        }}
+      >
+        <Dropdown.Content
+          ref={calendarRef}
+          anchor={anchorRef}
+          side="bottom"
+          align="start"
+          initialFocus={false}
+          finalFocus={false}
+          aria-label={t`Calendar`}
+        >
+          <DatePicker
+            instanceId={instanceId}
+            plainDateString={calendarDate}
+            hideHeaderInput
+            keyboardEventsDisabled
+            onChange={setCalendarDate}
+            onClose={(pickedDate) =>
+              close(() => onCommitText(pickedDate ?? '', 'none'))
+            }
+          />
+        </Dropdown.Content>
+      </Dropdown.Root>
+    </StyledFastContactsEditorContainer>
   );
 };

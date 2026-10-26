@@ -96,7 +96,7 @@ export const FastContactsToolbar = ({
   const { pushFocusItemToFocusStack } = usePushFocusItemToFocusStack();
   const { removeFocusItemFromFocusStackById } =
     useRemoveFocusItemFromFocusStackById();
-  const hiddenCount = totalCount - shownCount;
+  const hiddenCount = Math.max(totalCount - shownCount, 0);
 
   useRemoveFocusItemFromFocusStackOnUnmount({
     focusId: FAST_CONTACTS_SEARCH_INPUT_FOCUS_ID,

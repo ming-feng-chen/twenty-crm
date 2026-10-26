@@ -1,3 +1,4 @@
+import { plural } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { atom, type PrimitiveAtom, useStore } from 'jotai';
 import { useState } from 'react';
@@ -324,8 +325,14 @@ export const useFastContactsWriter = ({
             status: 'warning',
             children:
               changedSinceCount > 0
-                ? t`Undone, except ${changedSinceCount} cell(s) someone changed since`
-                : t`Undone, except ${skippedCount} cell(s) that could not be saved`,
+                ? plural(changedSinceCount, {
+                    one: 'Undone, except # cell someone changed since',
+                    other: 'Undone, except # cells someone changed since',
+                  })
+                : plural(skippedCount, {
+                    one: 'Undone, except # cell that could not be saved',
+                    other: 'Undone, except # cells that could not be saved',
+                  }),
             description: formatFastContactsSkippedCells({
               skippedCells: failedCells,
               formatPersonName,
@@ -397,7 +404,14 @@ export const useFastContactsWriter = ({
         status: savedCount > 0 ? 'warning' : 'error',
         children: isSingleCellEdit
           ? allSkippedCells[0].reason
-          : t`${savedCount} cell(s) saved, ${skippedCount} skipped`,
+          : plural(savedCount, {
+              one: '# cell saved',
+              other: '# cells saved',
+            }) +
+            plural(skippedCount, {
+              one: ', # skipped',
+              other: ', # skipped',
+            }),
         description: isSingleCellEdit
           ? undefined
           : formatFastContactsSkippedCells({
@@ -412,7 +426,10 @@ export const useFastContactsWriter = ({
     if (!isSingleCellEdit && savedCount > 0) {
       enqueueToast({
         status: 'success',
-        children: t`${savedCount} cell(s) changed. Ctrl+Z to undo.`,
+        children: plural(savedCount, {
+          one: '# cell changed. Ctrl+Z to undo.',
+          other: '# cells changed. Ctrl+Z to undo.',
+        }),
       });
     }
   };

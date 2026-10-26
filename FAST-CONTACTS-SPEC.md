@@ -30,7 +30,7 @@ Each sheet keeps its own search, filters and sort.
 | LinkedIn | `linkedinLink` | primary link only; secondary links untouched and still shown |
 | Email | `emails` | primary email only; additional emails untouched and still shown |
 | Connection note | `linkedinConnectionNote` | text |
-| Phone | `phones` | primary phone only; additional phones untouched and still shown |
+| Phone | `phones` | primary phone only, typed with its country code (+44 …); additional phones untouched and still shown |
 | City | `city` | text |
 | Health | `cadenceHealth` | dropdown |
 | Snooze until | `snoozeUntil` | date |
@@ -80,7 +80,8 @@ Changing an owner from one member to another is a handover (cadence SPEC §4). T
 - "+ New contact" adds an empty row at the top with the cursor in Name. The person is created once a name is entered; the cursor then moves to Company.
 - Owner defaults to the viewer.
 - The new row stays visible until the next refresh even if it does not match the sheet or filters.
-- When a typed email or LinkedIn matches an existing person, a warning names them with a link; saving is still allowed.
+- When a typed LinkedIn matches an existing person, a warning names them with a link; saving is still allowed.
+- Email is unique in Twenty (the database refuses a second person with the same email), so a duplicate email is skipped with a reason naming the person who has it. Changed from "allowed with a warning" after testing, 2026-10-26.
 
 ## 7. Export
 

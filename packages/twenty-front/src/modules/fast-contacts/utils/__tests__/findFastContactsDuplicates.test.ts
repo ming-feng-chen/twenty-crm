@@ -46,8 +46,8 @@ describe('findFastContactsDuplicates', () => {
         peopleById: PEOPLE_BY_ID,
       }),
     ).toEqual([
-      { personId: 'new', existingPersonId: 'jane' },
-      { personId: 'new', existingPersonId: 'jane' },
+      { personId: 'new', columnKey: 'emails', existingPersonId: 'jane' },
+      { personId: 'new', columnKey: 'linkedinLink', existingPersonId: 'jane' },
     ]);
   });
 
